@@ -137,9 +137,9 @@ class MotionSimulator {
         const maxVelocity = Math.max(...profile.map(p => p.velocity));
         const maxAcceleration = Math.max(...profile.map(p => Math.abs(p.acceleration)));
         // Calculate g(t) values for each plot
-        const gPosition = profile.map((p, i) => p.position + this.k * (p.position - profile[i - 1].position) / dt);
-        const gVelocity = profile.map((p, i) => p.velocity + this.k * (p.velocity - profile[i - 1].velocity) / dt);
-        const gAcceleration = profile.map((p, i) => p.acceleration + this.k * (p.acceleration - profile[i - 1].acceleration) / dt); // jerk not calculated, so derivative of acceleration is 0
+        const gPosition = profile.map((p, i) => p.position + this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position)) / dt);
+        const gVelocity = profile.map((p, i) => p.velocity + this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity)) / dt);
+        const gAcceleration = profile.map((p, i) => p.acceleration + this.k * (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration)) / dt); // jerk not calculated, so derivative of acceleration is 0
         // Update max values to include g(t) traces
         const maxPositionWithG = Math.max(maxPosition, Math.max(...gPosition.map(Math.abs)));
         const maxVelocityWithG = Math.max(maxVelocity, Math.max(...gVelocity.map(Math.abs)));
