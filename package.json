@@ -1,0 +1,19 @@
+{
+  "name": "s_curve_simulator",
+  "version": "1.0.0",
+  "description": "S-curve motion profile simulator",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "http-server . -p 3000",
+    "dev": "tsc --watch & http-server . -p 3000"
+  },
+  "keywords": ["motion", "profile", "trapezoidal", "simulator"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "http-server": "^14.1.1"
+  }
+}

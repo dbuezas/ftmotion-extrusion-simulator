@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S-Curve Motion Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .controls {
+            flex: 0 0 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider {
+            flex: 1;
+        }
+
+        .value {
+            min-width: 80px;
+            text-align: right;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            border: none;
+        }
+
+        .plots {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #motion-canvas {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+
+        .info p {
+            margin: 5px 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>S-Curve Motion Profile Simulator</h1>
+
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="distance">Distance</label>
+                <div class="slider-container">
+                    <input type="range" id="distance" class="slider" min="0" max="100" step="1" value="50">
+                    <span id="distance-value" class="value">50 mm</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="rate">Rate (Velocity)</label>
+                <div class="slider-container">
+                    <input type="range" id="rate" class="slider" min="1" max="500" step="1" value="100">
+                    <span id="rate-value" class="value">100 mm/s</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="acceleration">Acceleration</label>
+                <div class="slider-container">
+                    <input type="range" id="acceleration" class="slider" min="1" max="10000" step="10" value="1000">
+                    <span id="acceleration-value" class="value">1000 mm/s²</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="acc-overshoot">Acceleration Overshoot</label>
+                <div class="slider-container">
+                    <input type="range" id="acc-overshoot" class="slider" min="1.25" max="1.875" step="0.001" value="1.5">
+                    <span id="overshoot-value" class="value">1.5</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="k-factor">K Factor</label>
+                <div class="slider-container">
+                    <input type="range" id="k-factor" class="slider" min="0" max="1" step="0.01" value="0.5">
+                    <span id="k-value" class="value">0.5</span>
+                </div>
+            </div>
+
+            <div class="info">
+                <h3>About</h3>
+                <p>This simulator generates trapezoidal motion profiles for position control systems.</p>
+                <p><strong>Distance:</strong> Total travel distance in millimeters</p>
+                <p><strong>Rate:</strong> Maximum velocity in mm/s</p>
+                <p><strong>Acceleration:</strong> Acceleration/deceleration rate in mm/s²</p>
+                <p><strong>Overshoot:</strong> Deceleration multiplier for asymmetric profiles</p>
+            </div>
+        </div>
+
+        <div class="plots">
+            <canvas id="motion-canvas"></canvas>
+        </div>
+    </div>
+
+    <script src="dist/main.js"></script>
+</body>
+</html>
