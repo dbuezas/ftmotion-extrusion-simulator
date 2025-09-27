@@ -327,13 +327,13 @@ export class MotionSimulator {
     this.ctx.fillText(
       `Planned extrussion. Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
       width - 50,
-      yOffset + plotHeight / 2 + 10
+      yOffset + plotHeight - 50 + 10
     );
 
     this.ctx.fillText(
       `With advance Max:. ${Math.max(...adjustedEValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedEValues).toFixed(1)}${suffix}`,
       width - 50,
-      yOffset + plotHeight / 2 + 20
+      yOffset + plotHeight - 50 + 20
     );
     this.ctx.textAlign = 'left'; // reset
   }

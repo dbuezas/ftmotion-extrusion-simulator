@@ -7,17 +7,10 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <h1>S-Curve Motion Profile Simulator</h1>
+    <h1>FTMotion Extrusion Profile Simulator</h1>
 
     <div class="container">
       <div class="controls">
-        <div class="control-group">
-          <label for="ftm-fs">FTM_FS</label>
-          <div class="slider-container">
-            <input type="range" id="ftm-fs" class="slider" min="500" max="3000" step="100" value="1000" />
-            <span id="ftm-fs-value" class="value">1000 Hz</span>
-          </div>
-        </div>
         <div class="control-group">
           <label for="distance">Distance</label>
           <div class="slider-container">
@@ -41,13 +34,6 @@
             <span id="acceleration-value" class="value">1000 mm/s²</span>
           </div>
         </div>
-        <div class="control-group">
-          <label for="k-factor">K Factor</label>
-          <div class="slider-container">
-            <input type="range" id="k-factor" class="slider" min="0" max="1" step="0.01" value="0.04" />
-            <span id="k-value" class="value">0.5</span>
-          </div>
-        </div>
 
         <div class="control-group">
           <label for="line-width">Line Width</label>
@@ -58,10 +44,34 @@
         </div>
 
         <div class="control-group">
-          <label for="layer-height">Layer Height</label>
+          <label for="layer-height">Line Height</label>
           <div class="slider-container">
             <input type="range" id="layer-height" class="slider" min="0.1" max="1.0" step="0.1" value="0.2" />
             <span id="layer-height-value" class="value">0.2 mm</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="k-factor">Linear Advance K</label>
+          <div class="slider-container">
+            <input type="range" id="k-factor" class="slider" min="0" max="1" step="0.01" value="0.04" />
+            <span id="k-value" class="value">0.5</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="trajectory">Trajectory</label>
+          <select id="trajectory" class="trajectory-select">
+            <option value="6poly">6POLY</option>
+            <option value="trapezoidal">Trapezoidal</option>
+          </select>
+        </div>
+
+        <div class="control-group conditional" id="overshoot-group">
+          <label for="acc-overshoot">Acceleration Overshoot</label>
+          <div class="slider-container">
+            <input type="range" id="acc-overshoot" class="slider" min="1.25" max="1.875" step="0.001" value="1.5" />
+            <span id="overshoot-value" class="value">1.5</span>
           </div>
         </div>
 
@@ -74,26 +84,20 @@
         </div>
 
         <div class="control-group">
-          <label for="trajectory">Trajectory Type</label>
-          <select id="trajectory" class="trajectory-select">
-            <option value="6poly">6POLY</option>
-            <option value="trapezoidal">Trapezoidal</option>
-          </select>
-        </div>
-        <div class="control-group conditional" id="overshoot-group">
-          <label for="acc-overshoot">Acceleration Overshoot</label>
+          <label for="ftm-fs">FTM_TS</label>
           <div class="slider-container">
-            <input type="range" id="acc-overshoot" class="slider" min="1.25" max="1.875" step="0.001" value="1.5" />
-            <span id="overshoot-value" class="value">1.5</span>
+            <input type="range" id="ftm-fs" class="slider" min="500" max="3000" step="100" value="1000" />
+            <span id="ftm-fs-value" class="value">1000 Hz</span>
           </div>
         </div>
+
         <div class="info">
           <h3>About</h3>
           <p>
             This simulator generates trapezoidal and accel overshoot 6 poly s curve accelerationo profiles, including
             axis smoothing and linear advance
           </p>
-          <p>David Buezas 2025</p>
+          <p>dbuezas@2025</p>
         </div>
       </div>
 
