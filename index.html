@@ -12,13 +12,20 @@
     <div class="container">
       <div class="controls">
         <div class="control-group">
-          <label for="trajectory">Trajectory Type</label>
-          <select id="trajectory" class="trajectory-select">
-            <option value="6poly">6POLY</option>
-            <option value="trapezoidal">Trapezoidal</option>
-          </select>
+          <label for="ftm-fs">FTM_FS</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="ftm-fs"
+              class="slider"
+              min="500"
+              max="3000"
+              step="100"
+              value="1000"
+            />
+            <span id="ftm-fs-value" class="value">1000 Hz</span>
+          </div>
         </div>
-
         <div class="control-group">
           <label for="distance">Distance</label>
           <div class="slider-container">
@@ -66,23 +73,6 @@
             <span id="acceleration-value" class="value">1000 mm/s²</span>
           </div>
         </div>
-
-        <div class="control-group conditional" id="overshoot-group">
-          <label for="acc-overshoot">Acceleration Overshoot</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="acc-overshoot"
-              class="slider"
-              min="1.25"
-              max="1.875"
-              step="0.001"
-              value="1.5"
-            />
-            <span id="overshoot-value" class="value">1.5</span>
-          </div>
-        </div>
-
         <div class="control-group">
           <label for="k-factor">K Factor</label>
           <div class="slider-container">
@@ -116,38 +106,34 @@
         </div>
 
         <div class="control-group">
-          <label for="ftm-fs">FTM_FS</label>
+          <label for="trajectory">Trajectory Type</label>
+          <select id="trajectory" class="trajectory-select">
+            <option value="6poly">6POLY</option>
+            <option value="trapezoidal">Trapezoidal</option>
+          </select>
+        </div>
+        <div class="control-group conditional" id="overshoot-group">
+          <label for="acc-overshoot">Acceleration Overshoot</label>
           <div class="slider-container">
             <input
               type="range"
-              id="ftm-fs"
+              id="acc-overshoot"
               class="slider"
-              min="500"
-              max="3000"
-              step="100"
-              value="1000"
+              min="1.25"
+              max="1.875"
+              step="0.001"
+              value="1.5"
             />
-            <span id="ftm-fs-value" class="value">1000 Hz</span>
+            <span id="overshoot-value" class="value">1.5</span>
           </div>
         </div>
-
         <div class="info">
           <h3>About</h3>
           <p>
-            This simulator generates trapezoidal motion profiles for position
+            This simulator generates motion profiles for position
             control systems.
+            David Buezas 2025
           </p>
-          <p><strong>Distance:</strong> Total travel distance in millimeters</p>
-          <p><strong>Rate:</strong> Maximum velocity in mm/s</p>
-          <p>
-            <strong>Acceleration:</strong> Acceleration/deceleration rate in
-            mm/s²
-          </p>
-          <p>
-            <strong>Overshoot:</strong> Max actual acceleration multiplier for 6
-            poly
-          </p>
-          <p><strong>Line Width:</strong> Extrusion line width in millimeters</p>
         </div>
       </div>
 
