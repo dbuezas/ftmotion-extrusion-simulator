@@ -13,6 +13,17 @@ export class MotionSimulator {
   private profile: Profile | null = null;
   private k: number = 0.5;
   private currentParams: MotionParameters | null = null;
+  private maxPosition: number = 0;
+  private maxVelocity: number = 0;
+  private maxAcceleration: number = 0;
+  private animating: boolean = false;
+  private animationStartTime: number = 0;
+  private oldMaxPosition: number = 0;
+  private oldMaxVelocity: number = 0;
+  private oldMaxAcceleration: number = 0;
+  private newMaxPosition: number = 0;
+  private newMaxVelocity: number = 0;
+  private newMaxAcceleration: number = 0;
 
   constructor(canvasId: string) {
     this.canvas = document.getElementById(canvasId) as HTMLCanvasElement;
@@ -47,11 +58,85 @@ export class MotionSimulator {
     this.currentParams = params;
     this.profile = calculateMotionProfile(params);
     this.k = params.k;
+    this.updateScaling();
+    this.draw();
+  }
+
+  updateProfileOnly(params: MotionParameters): void {
+    this.currentParams = params;
+    this.profile = calculateMotionProfile(params);
+    this.k = params.k;
+    this.draw();
+  }
+
+  updateScaling(): void {
+    if (!this.profile || !this.currentParams || this.animating) return;
+
+    // Store old values
+    this.oldMaxPosition = this.maxPosition;
+    this.oldMaxVelocity = this.maxVelocity;
+    this.oldMaxAcceleration = this.maxAcceleration;
+
+    const profile = this.profile;
+    const dt = 1 / this.currentParams.ftmFs;
+
+    // Calculate extruder(t) values for each plot
+    const ePosition = profile.pos.map((p, i) => p + this.k * profile.vel[i]);
+    const eVelocity = derivate(ePosition, dt);
+    const eAcceleration = derivate(eVelocity, dt);
+
+    // Calculate new max values including extruder(t) traces
+    const positionValues = [...profile.pos, ...ePosition];
+    this.newMaxPosition = Math.max(...positionValues.map(Math.abs));
+
+    const velocityValues = [...profile.vel, ...eVelocity];
+    this.newMaxVelocity = Math.max(...velocityValues.map(Math.abs));
+
+    const accelerationValues = [...profile.acc, ...eAcceleration].map(
+      (a) => Math.abs(a) / 1000
+    );
+    this.newMaxAcceleration = Math.max(...accelerationValues);
+
+    // Start animation
+    this.animating = true;
+    this.animationStartTime = performance.now();
+    this.animateScaling();
+  }
+
+  private animateScaling(): void {
+    const elapsed = performance.now() - this.animationStartTime;
+    const duration = 250; // 250ms
+    const progress = Math.min(elapsed / duration, 1);
+
+    // Ease function (ease-out)
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+    // Interpolate max values
+    this.maxPosition = this.oldMaxPosition + (this.newMaxPosition - this.oldMaxPosition) * easeProgress;
+    this.maxVelocity = this.oldMaxVelocity + (this.newMaxVelocity - this.oldMaxVelocity) * easeProgress;
+    this.maxAcceleration = this.oldMaxAcceleration + (this.newMaxAcceleration - this.oldMaxAcceleration) * easeProgress;
+
+    // Redraw with interpolated values
+    this.draw();
+
+    if (progress < 1) {
+      requestAnimationFrame(() => this.animateScaling());
+    } else {
+      this.animating = false;
+      // Ensure final values are set exactly
+      this.maxPosition = this.newMaxPosition;
+      this.maxVelocity = this.newMaxVelocity;
+      this.maxAcceleration = this.newMaxAcceleration;
+      this.draw();
+    }
+  }
+
+  redraw(): void {
     this.draw();
   }
 
   private draw(): void {
-    if (!this.profile) return;
+    if (!this.profile || !this.currentParams) return;
 
     const profile = this.profile;
     if (profile.pos.length === 0) return;
@@ -66,25 +151,13 @@ export class MotionSimulator {
     const height = this.canvas.height / window.devicePixelRatio;
 
     // Find max values for scaling
-    const dt = 1 / this.currentParams!.ftmFs;
+    const dt = 1 / this.currentParams.ftmFs;
     const maxTime = profile.pos.length * dt;
 
     // Calculate extruder(t) values for each plot
     const ePosition = profile.pos.map((p, i) => p + this.k * profile.vel[i]);
     const eVelocity = derivate(ePosition, dt);
     const eAcceleration = derivate(eVelocity, dt);
-
-    // Calculate current max values including extruder(t) traces
-    const positionValues = [...profile.pos, ...ePosition];
-    const maxPosition = Math.max(...positionValues.map(Math.abs));
-
-    const velocityValues = [...profile.vel, ...eVelocity];
-    const maxVelocity = Math.max(...velocityValues.map(Math.abs));
-
-    const accelerationValues = [...profile.acc, ...eAcceleration].map(
-      (a) => Math.abs(a) / 1000
-    );
-    const maxAcceleration = Math.max(...accelerationValues);
 
     const plotHeight = (height - 40) / 3;
     // Draw position plot (top third) with both traces
@@ -93,7 +166,7 @@ export class MotionSimulator {
       'pos',
       ePosition,
       maxTime,
-      maxPosition,
+      this.maxPosition,
       0,
       plotHeight,
       'blue',
@@ -107,7 +180,7 @@ export class MotionSimulator {
       'vel',
       eVelocity,
       maxTime,
-      maxVelocity,
+      this.maxVelocity,
       plotHeight,
       plotHeight,
       'green',
@@ -121,7 +194,7 @@ export class MotionSimulator {
       'acc',
       eAcceleration,
       maxTime,
-      maxAcceleration,
+      this.maxAcceleration,
       2 * plotHeight,
       plotHeight,
       'red',
@@ -242,13 +315,13 @@ export class MotionSimulator {
     this.ctx.font = '10px Arial';
     this.ctx.textAlign = 'right';
     this.ctx.fillText(
-      `Raw Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
+      `Planned extrussion. Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
       width - 50,
       yOffset + plotHeight / 2 + 10
     );
 
     this.ctx.fillText(
-      `With advance Max: ${Math.max(...adjustedEValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedEValues).toFixed(1)}${suffix}`,
+      `With advance Max:. ${Math.max(...adjustedEValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedEValues).toFixed(1)}${suffix}`,
       width - 50,
       yOffset + plotHeight / 2 + 20
     );

@@ -43,8 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const ftmFsValue = document.getElementById('ftm-fs-value')!;
   const smoothingTimeValue = document.getElementById('smoothing-time-value')!;
 
-  function updateSimulator() {
-    const params: MotionParameters = {
+  function getParams(): MotionParameters {
+    return {
       trajectory: trajectorySelect.value as 'trapezoidal' | '6poly',
       distance: parseFloat(distanceSlider.value),
       rate: parseFloat(rateSlider.value),
@@ -56,7 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
       ftmFs: parseFloat(ftmFsSlider.value),
       smoothingTime: parseFloat(smoothingTimeSlider.value),
     };
+  }
+
+  function updateSimulator() {
+    const params = getParams();
     simulator.updateProfile(params);
+  }
+
+  function updateProfileOnly() {
+    const params = getParams();
+    simulator.updateProfileOnly(params);
+  }
+
+  function updateScaling() {
+    simulator.updateScaling();
   }
 
   function updateDisplays() {
@@ -99,7 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
   ].forEach((slider) => {
     slider.addEventListener('input', () => {
       updateDisplays();
-      updateSimulator();
+      updateProfileOnly();
+    });
+    slider.addEventListener('change', () => {
+      updateScaling();
     });
   });
 
