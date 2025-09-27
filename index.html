@@ -88,6 +88,19 @@
             border: none;
         }
 
+        .trajectory-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .control-group.conditional {
+            display: none;
+        }
+
         .plots {
             flex: 1;
             background: white;
@@ -128,6 +141,14 @@
     <div class="container">
         <div class="controls">
             <div class="control-group">
+                <label for="trajectory">Trajectory Type</label>
+                <select id="trajectory" class="trajectory-select">
+                    <option value="trapezoidal">Trapezoidal</option>
+                    <option value="6poly">6POLY</option>
+                </select>
+            </div>
+
+            <div class="control-group">
                 <label for="distance">Distance</label>
                 <div class="slider-container">
                     <input type="range" id="distance" class="slider" min="0" max="100" step="1" value="50">
@@ -151,7 +172,7 @@
                 </div>
             </div>
 
-            <div class="control-group">
+            <div class="control-group conditional" id="overshoot-group">
                 <label for="acc-overshoot">Acceleration Overshoot</label>
                 <div class="slider-container">
                     <input type="range" id="acc-overshoot" class="slider" min="1.25" max="1.875" step="0.001" value="1.5">
@@ -173,7 +194,7 @@
                 <p><strong>Distance:</strong> Total travel distance in millimeters</p>
                 <p><strong>Rate:</strong> Maximum velocity in mm/s</p>
                 <p><strong>Acceleration:</strong> Acceleration/deceleration rate in mm/s²</p>
-                <p><strong>Overshoot:</strong> Deceleration multiplier for asymmetric profiles</p>
+                <p><strong>Overshoot:</strong> Max actual acceleration multiplier for 6 poly</p>
             </div>
         </div>
 
@@ -182,6 +203,6 @@
         </div>
     </div>
 
-    <script src="dist/main.js"></script>
+    <script type="module" src="dist/main.js"></script>
 </body>
 </html>

@@ -1,4 +1,10 @@
+import { TrapezoidalProfile, ProfilePoint as TrapezoidalProfilePoint } from './trapezoidal.js';
+import { Poly6Profile, ProfilePoint as Poly6ProfilePoint } from './poly6.js';
+
+const dt = 0.001; // 1ms steps
+
 interface MotionParameters {
+  trajectory: 'trapezoidal' | '6poly';
   distance: number; // mm
   rate: number; // mm/s
   acceleration: number; // mm/s²
@@ -12,9 +18,8 @@ interface ProfilePoint {
   velocity: number;
   acceleration: number;
 }
-const dt = 0.001; // 1ms steps
 
-class TrapezoidalProfile {
+class MotionProfile {
   private params: MotionParameters;
   private profile: ProfilePoint[] = [];
 
@@ -24,103 +29,14 @@ class TrapezoidalProfile {
   }
 
   private calculateProfile(): void {
-    const { distance, rate, acceleration } = this.params;
+    const { trajectory, distance, rate, acceleration, accOvershoot } = this.params;
 
-    // Calculate times for each phase
-    const t_accel = rate / acceleration; // time to reach max velocity
-    const d_accel = 0.5 * acceleration * t_accel * t_accel; // distance during acceleration
-    const d_decel = d_accel; // distance during deceleration (same as acceleration)
-    const d_constant = distance - d_accel - d_decel; // distance at constant velocity
-
-    if (d_constant < 0) {
-      // Triangle profile - not enough distance for constant velocity phase
-      const t_total = Math.sqrt(2 * distance / acceleration);
-      const t_accel_total = t_total / 2;
-      const v_max = acceleration * t_accel_total;
-
-      this.generateTriangleProfile(t_accel_total, v_max, acceleration);
+    if (trajectory === '6poly') {
+      const poly6Profile = new Poly6Profile(distance, rate, acceleration, accOvershoot);
+      this.profile = poly6Profile.getProfile();
     } else {
-      // Trapezoidal profile
-      const t_constant = d_constant / rate;
-      const t_decel = t_accel; // same time as acceleration
-      const t_total = t_accel + t_constant + t_decel;
-
-      this.generateTrapezoidalProfile(t_accel, t_constant, t_decel, rate, acceleration);
-    }
-  }
-
-  private generateTriangleProfile(t_accel: number, v_max: number, accel: number): void {
-    let time = 0;
-
-    // Acceleration phase
-    while (time <= t_accel) {
-      const velocity = accel * time;
-      const position = 0.5 * accel * time * time;
-      this.profile.push({
-        time,
-        position,
-        velocity,
-        acceleration: accel
-      });
-      time += dt;
-    }
-
-    // Deceleration phase
-    while (time <= 2 * t_accel) {
-      const velocity = v_max - accel * (time - t_accel);
-      const position = 0.5 * accel * t_accel * t_accel + v_max * (time - t_accel) - 0.5 * accel * (time - t_accel) * (time - t_accel);
-      this.profile.push({
-        time,
-        position,
-        velocity,
-        acceleration: -accel
-      });
-      time += dt;
-    }
-  }
-
-  private generateTrapezoidalProfile(t_accel: number, t_constant: number, t_decel: number, v_max: number, accel: number): void {
-    let time = 0;
-
-    // Acceleration phase
-    while (time <= t_accel) {
-      const velocity = accel * time;
-      const position = 0.5 * accel * time * time;
-      this.profile.push({
-        time,
-        position,
-        velocity,
-        acceleration: accel
-      });
-      time += dt;
-    }
-
-    // Constant velocity phase
-    const accel_end_time = t_accel;
-    const constant_end_time = t_accel + t_constant;
-    while (time <= constant_end_time) {
-      const position = 0.5 * accel * t_accel * t_accel + v_max * (time - t_accel);
-      this.profile.push({
-        time,
-        position,
-        velocity: v_max,
-        acceleration: 0
-      });
-      time += dt;
-    }
-
-    // Deceleration phase (using same acceleration magnitude)
-    while (time <= t_accel + t_constant + t_decel) {
-      const time_in_decel = time - constant_end_time;
-      const velocity = v_max - accel * time_in_decel;
-      const position = 0.5 * accel * t_accel * t_accel + v_max * t_constant + v_max * time_in_decel - 0.5 * accel * time_in_decel * time_in_decel;
-      this.profile.push({
-        time,
-        position,
-        velocity,
-        acceleration: -accel
-      });
-      time += dt;
+      const trapezoidalProfile = new TrapezoidalProfile(distance, rate, acceleration);
+      this.profile = trapezoidalProfile.getProfile();
     }
   }
 
@@ -132,7 +48,7 @@ class TrapezoidalProfile {
 class MotionSimulator {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private profile: TrapezoidalProfile | null = null;
+  private profile: MotionProfile | null = null;
   private k: number = 0.5;
 
   constructor(canvasId: string) {
@@ -152,7 +68,7 @@ class MotionSimulator {
   }
 
   updateProfile(params: MotionParameters): void {
-    this.profile = new TrapezoidalProfile(params);
+    this.profile = new MotionProfile(params);
     this.k = params.k;
     this.draw();
   }
@@ -179,16 +95,26 @@ class MotionSimulator {
     const gVelocity = profile.map((p, i) => p.velocity + this.k * (p.velocity - (i==0?0:profile[i-1].velocity))/dt);
     const gAcceleration = profile.map((p, i) => p.acceleration + this.k * (p.acceleration - (i==0?0:profile[i-1].acceleration))/dt); // jerk not calculated, so derivative of acceleration is 0
 
-    // Update max values to include g(t) traces
-    const maxPositionWithG = Math.max(maxPosition, Math.max(...gPosition.map(Math.abs)));
-    const maxVelocityWithG = Math.max(maxVelocity, Math.max(...gVelocity.map(Math.abs)));
-    const maxAccelerationWithG = Math.max(maxAcceleration, Math.max(...gAcceleration.map(Math.abs)));
+    // Calculate min/max values including both original and g(t) traces
+    const positionValues = [...profile.map(p => p.position), ...gPosition];
+    const velocityValues = [...profile.map(p => p.velocity), ...gVelocity];
+    const accelerationValues = [...profile.map(p => Math.abs(p.acceleration)), ...gAcceleration.map(Math.abs)];
+
+    const positionMin = Math.min(...positionValues);
+    const positionMax = Math.max(...positionValues);
+    const positionRange = Math.max(Math.abs(positionMin), Math.abs(positionMax));
+
+    const velocityMin = Math.min(...velocityValues);
+    const velocityMax = Math.max(...velocityValues);
+    const velocityRange = Math.max(Math.abs(velocityMin), Math.abs(velocityMax));
+
+    const maxAccelerationWithG = Math.max(...accelerationValues);
 
     // Draw position plot (top third) with both traces
-    this.drawPlotWithG(profile, 'position', gPosition, maxTime, maxPositionWithG, 0, height / 3, 'blue', 'purple', 'Position (mm)');
+    this.drawPlotWithG(profile, 'position', gPosition, maxTime, positionRange, 0, height / 3, 'blue', 'purple', 'Position (mm)');
 
     // Draw velocity plot (middle third) with both traces
-    this.drawPlotWithG(profile, 'velocity', gVelocity, maxTime, maxVelocityWithG, height / 3, height / 3, 'green', 'purple', 'Velocity (mm/s)');
+    this.drawPlotWithG(profile, 'velocity', gVelocity, maxTime, velocityRange, height / 3, height / 3, 'green', 'purple', 'Velocity (mm/s)');
 
     // Draw acceleration plot (bottom third) with both traces
     this.drawPlotWithG(profile, 'acceleration', gAcceleration, maxTime, maxAccelerationWithG, 2 * height / 3, height / 3, 'red', 'purple', 'Acceleration (mm/s²)');
@@ -197,6 +123,9 @@ class MotionSimulator {
   private drawPlotWithG(profile: ProfilePoint[], property: keyof ProfilePoint, gValues: number[], maxTime: number, maxValue: number, yOffset: number, plotHeight: number, color1: string, color2: string, label: string): void {
     const width = this.canvas.width / window.devicePixelRatio;
     const height = this.canvas.height / window.devicePixelRatio;
+
+    // Calculate center line (zero) position
+    const centerY = yOffset + plotHeight / 2;
 
     // Draw original function
     this.ctx.strokeStyle = color1;
@@ -207,7 +136,7 @@ class MotionSimulator {
       const point = profile[i];
       const x = (point.time / maxTime) * (width - 100) + 50;
       const value = property === 'acceleration' ? Math.abs(point[property] as number) : point[property] as number;
-      const y = yOffset + plotHeight - (value / maxValue) * (plotHeight - 40) - 20;
+      const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -226,8 +155,8 @@ class MotionSimulator {
     for (let i = 0; i < profile.length; i++) {
       const point = profile[i];
       const x = (point.time / maxTime) * (width - 100) + 50;
-      const value = Math.abs(gValues[i]);
-      const y = yOffset + plotHeight - (value / maxValue) * (plotHeight - 40) - 20;
+      const value = gValues[i];
+      const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -238,12 +167,14 @@ class MotionSimulator {
 
     this.ctx.stroke();
 
-    // Draw axes
+    // Draw axes (including center line)
     this.ctx.strokeStyle = '#333';
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    this.ctx.moveTo(50, yOffset + plotHeight - 20);
-    this.ctx.lineTo(width - 50, yOffset + plotHeight - 20);
+    // Horizontal axis (time)
+    this.ctx.moveTo(50, centerY);
+    this.ctx.lineTo(width - 50, centerY);
+    // Vertical axis (zero line)
     this.ctx.moveTo(50, yOffset + 20);
     this.ctx.lineTo(50, yOffset + plotHeight - 20);
     this.ctx.stroke();
@@ -259,12 +190,14 @@ class MotionSimulator {
 document.addEventListener('DOMContentLoaded', () => {
   const simulator = new MotionSimulator('motion-canvas');
 
-  // Get slider elements
+  // Get control elements
+  const trajectorySelect = document.getElementById('trajectory') as HTMLSelectElement;
   const distanceSlider = document.getElementById('distance') as HTMLInputElement;
   const rateSlider = document.getElementById('rate') as HTMLInputElement;
   const accelerationSlider = document.getElementById('acceleration') as HTMLInputElement;
   const overshootSlider = document.getElementById('acc-overshoot') as HTMLInputElement;
   const kSlider = document.getElementById('k-factor') as HTMLInputElement;
+  const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements
   const distanceValue = document.getElementById('distance-value')!;
@@ -275,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateSimulator() {
     const params: MotionParameters = {
+      trajectory: trajectorySelect.value as 'trapezoidal' | '6poly',
       distance: parseFloat(distanceSlider.value),
       rate: parseFloat(rateSlider.value),
       acceleration: parseFloat(accelerationSlider.value),
@@ -292,13 +226,31 @@ document.addEventListener('DOMContentLoaded', () => {
     kValue.textContent = kSlider.value;
   }
 
+  function updateTrajectoryDisplay() {
+    if (trajectorySelect.value === '6poly') {
+      overshootGroup.classList.remove('conditional');
+    } else {
+      overshootGroup.classList.add('conditional');
+    }
+  }
+
   // Add event listeners
+  trajectorySelect.addEventListener('change', () => {
+    updateTrajectoryDisplay();
+    updateSimulator();
+  });
+
   [distanceSlider, rateSlider, accelerationSlider, overshootSlider, kSlider].forEach(slider => {
     slider.addEventListener('input', () => {
       updateDisplays();
       updateSimulator();
     });
   });
+
+  // Initial setup
+  updateTrajectoryDisplay();
+  updateDisplays();
+  updateSimulator();
 
   // Initial update
   updateDisplays();

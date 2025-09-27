@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "watch": "tsc --watch",
     "start": "http-server . -p 3000",
     "dev": "tsc --watch & http-server . -p 3000"
   },
