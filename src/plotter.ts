@@ -46,8 +46,6 @@ export class MotionSimulator {
       0,
       0
     );
-    this.canvas.style.width = rect.width + 'px';
-    this.canvas.style.height = rect.height + 'px';
     // Redraw after resize to update axes
     if (this.profile) {
       this.draw();
@@ -93,7 +91,7 @@ export class MotionSimulator {
     this.newMaxVelocity = Math.max(...velocityValues.map(Math.abs));
 
     const accelerationValues = [...profile.acc, ...eAcceleration].map(
-      (a) => Math.abs(a) / 1000
+      (a) => Math.abs(a)
     );
     this.newMaxAcceleration = Math.max(...accelerationValues);
 
@@ -229,7 +227,7 @@ export class MotionSimulator {
     for (let i = 0; i < datapoints.length; i++) {
       const point = datapoints[i];
       const x = (i / datapoints.length) * (width - 100) + 50;
-      const value = property === 'acc' ? Math.abs(point) / 1000 : point;
+      const value = property === 'acc' ? Math.abs(point) : point;
       const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
@@ -248,8 +246,7 @@ export class MotionSimulator {
 
     for (let i = 0; i < eValues.length; i++) {
       const x = (i / eValues.length) * (width - 100) + 50;
-      const value = property === 'acc' ? eValues[i] / 1000 : eValues[i];
-      const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
+      const y = centerY - (eValues[i] / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -289,7 +286,7 @@ export class MotionSimulator {
       this.ctx.stroke();
       // Draw label
       this.ctx.fillText(
-        property === 'acc' ? tickValue.toFixed(1) + 'k' : tickValue.toFixed(1),
+        tickValue.toFixed(1),
         40,
         y + 4
       );
@@ -303,12 +300,12 @@ export class MotionSimulator {
 
     // Calculate max/min for display
     const originalValues = datapoints.map((v) =>
-      property === 'acc' ? Math.abs(v) / 1000 : v
+      property === 'acc' ? Math.abs(v) : v
     );
     const adjustedEValues = eValues.map((v) =>
-      property === 'acc' ? v / 1000 : v
+      property === 'acc' ? Math.abs(v) : v
     );
-    const suffix = property === 'acc' ? 'k' : '';
+    const suffix = '';
 
     // Display max/min for traces at bottom right
     this.ctx.fillStyle = '#333';
