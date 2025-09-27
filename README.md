@@ -4,6 +4,9 @@ A web-based simulator for visualizing extrusion motion profiles in Marlin with F
 
 # Note not al of this is merged in Marlin yet
 
+<img width="1149" height="855" alt="image" src="https://github.com/user-attachments/assets/1de7839f-13cc-4d17-a116-e8af4b86f994" />
+
+
 ## Features
 
 - **Motion Profile Types**: Supports both trapezoidal and 6-poly (sextic) acceleration profiles
