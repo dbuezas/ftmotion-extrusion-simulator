@@ -29,11 +29,8 @@ class AxisSmoothing {
 
 function smoothen(positions: number[], smoothing: AxisSmoothing): number[] {
   if (smoothing.alpha > 0) {
-    const padCount = Math.ceil(smoothing.delay_samples);
-    const padded = [
-      ...positions,
-      ...Array(padCount).fill(positions.at(-1)!),
-    ];
+    const padCount = Math.ceil(smoothing.delay_samples * 2);
+    const padded = [...positions, ...Array(padCount).fill(positions.at(-1)!)];
     const smoothed: number[] = [];
     for (let val of padded) {
       let smooth_val = val;
@@ -44,7 +41,7 @@ function smoothen(positions: number[], smoothing: AxisSmoothing): number[] {
       }
       smoothed.push(smooth_val);
     }
-    return smoothed.slice(smoothing.delay_samples);
+    return smoothed;
   }
   return positions;
 }
@@ -61,43 +58,21 @@ interface MotionParameters {
   smoothingTime: number; // s
 }
 
-interface ProfilePoint {
-  time: number;
-  position: number;
-  velocity: number;
-  acceleration: number;
-}
+const derivate = (arr: number[], dt: number) =>
+  arr.map((p, i) => (i === 0 ? 0 : (p - arr[i - 1]) / dt));
 
+type Profile = { pos: number[]; vel: number[]; acc: number[] };
 class MotionProfile {
   private params: MotionParameters;
-  private profile: ProfilePoint[] = [];
+  private profile: Profile = {
+    pos: [],
+    vel: [],
+    acc: [],
+  };
 
   constructor(params: MotionParameters) {
     this.params = params;
     this.calculateProfile();
-  }
-
-  private calculateVelAcc(posProfile: number[], dt: number): ProfilePoint[] {
-    const profile: ProfilePoint[] = [];
-    profile.push({
-      time: 0,
-      position: posProfile[0],
-      velocity:0,
-      acceleration:0,
-    });
-    for (let i = 1; i < posProfile.length; i++) {
-      // Calculate velocity using backward difference: vel[i] = (pos[i] - pos[i-1]) / dt
-      const position = posProfile[i];
-      const velocity = (position - profile[i - 1].position) / dt;
-      const acceleration = (velocity - profile[i - 1].velocity) / dt;
-      profile.push({
-        time: dt * i,
-        position,
-        velocity,
-        acceleration, // will calculate next
-      });
-    }
-    return profile;
   }
 
   private calculateProfile(): void {
@@ -133,21 +108,16 @@ class MotionProfile {
     }
 
     // Apply axis smoothing if smoothingTime > 0
-    if (smoothingTime > 0) {
-      const smoothing = new AxisSmoothing(FTM_SMOOTHING_ORDER);
-      smoothing.set_smoothing_time(
-        smoothingTime,
-        dt,
-        ftmFs,
-        FTM_SMOOTHING_ORDER
-      );
+    const smoothing = new AxisSmoothing(FTM_SMOOTHING_ORDER);
+    smoothing.set_smoothing_time(smoothingTime, dt, ftmFs, FTM_SMOOTHING_ORDER);
 
-      posProfile = smoothen(posProfile, smoothing);
-    }
-    this.profile = this.calculateVelAcc(posProfile, dt);
+    const pos = smoothen(posProfile, smoothing);
+    const vel = derivate(pos, dt);
+    const acc = derivate(vel, dt);
+    this.profile = { pos, vel, acc };
   }
 
-  getProfile(): ProfilePoint[] {
+  getProfile() {
     return this.profile;
   }
 }
@@ -157,10 +127,6 @@ class MotionSimulator {
   private ctx: CanvasRenderingContext2D;
   private profile: MotionProfile | null = null;
   private k: number = 0.5;
-  private historicMaxPosition: number = 0;
-  private historicMaxVelocity: number = 0;
-  private historicMaxAcceleration: number = 0;
-  private previousAccOvershoot: number = 1.5;
   private currentParams: MotionParameters | null = null;
 
   constructor(canvasId: string) {
@@ -203,7 +169,7 @@ class MotionSimulator {
     if (!this.profile) return;
 
     const profile = this.profile.getProfile();
-    if (profile.length === 0) return;
+    if (profile.pos.length === 0) return;
 
     this.ctx.clearRect(
       0,
@@ -215,65 +181,37 @@ class MotionSimulator {
     const height = this.canvas.height / window.devicePixelRatio;
 
     // Find max values for scaling
-    const maxTime = Math.max(...profile.map((p) => p.time));
     const dt = 1 / this.currentParams!.ftmFs;
+    const maxTime = profile.pos.length * dt;
 
     // Compute mm of filament per mm of travel
     const mmFilamentPerMmTravel =
       (this.currentParams!.lineWidth * layerHeight) / filamentArea;
 
     // Calculate extruder(t) values for each plot
-    const ePosition = profile.map(
-      (p, i) =>
-        p.position * mmFilamentPerMmTravel +
-        (this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position))) / dt
+    const ePosition = profile.pos.map(
+      (p, i) => (p + this.k * profile.vel[i]) * mmFilamentPerMmTravel
     );
-    const eVelocity = profile.map(
-      (p, i) =>
-        p.velocity * mmFilamentPerMmTravel +
-        (this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity))) / dt
+    const eVelocity = derivate(ePosition, dt);
+    const eAcceleration = derivate(eVelocity, dt);
+
+    // Calculate current max values including extruder(t) traces
+    const positionValues = [...profile.pos, ...ePosition];
+    const maxPosition = Math.max(...positionValues.map(Math.abs));
+
+    const velocityValues = [...profile.vel, ...eVelocity];
+    const maxVelocity = Math.max(...velocityValues.map(Math.abs));
+
+    const accelerationValues = [...profile.acc, ...eAcceleration].map(
+      (a) => Math.abs(a) / 1000
     );
-    const eAcceleration = profile.map(
-      (p, i) =>
-        p.acceleration * mmFilamentPerMmTravel +
-        (this.k *
-          (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration))) /
-          dt
-    );
+    const maxAcceleration = Math.max(...accelerationValues);
 
-    // Update historic max values only if overshoot didn't change
-    const overshootChanged =
-      this.currentParams &&
-      this.currentParams.accOvershoot !== this.previousAccOvershoot;
-    if (!overshootChanged) {
-      // Calculate current max values including extruder(t) traces
-      const positionValues = [...profile.map((p) => p.position), ...ePosition];
-      this.historicMaxPosition = Math.max(...positionValues.map(Math.abs));
-
-      const velocityValues = [...profile.map((p) => p.velocity), ...eVelocity];
-      this.historicMaxVelocity = Math.max(...velocityValues.map(Math.abs));
-
-      const accelerationValues = [
-        ...profile.map((p) => Math.abs(p.acceleration) / 1000),
-        ...eAcceleration.map((a) => Math.abs(a) / 1000),
-      ];
-      this.historicMaxAcceleration = Math.max(...accelerationValues);
-    }
-
-    // Update previous overshoot
-    if (this.currentParams) {
-      this.previousAccOvershoot = this.currentParams.accOvershoot;
-    }
-
-    // Use historic max values for scaling (only increases)
-    const maxPosition = Math.max(this.historicMaxPosition, 1); // minimum 1 to avoid division by zero
-    const maxVelocity = Math.max(this.historicMaxVelocity, 1);
-    const maxAcceleration = Math.max(this.historicMaxAcceleration, 1);
     const plotHeight = (height - 40) / 3;
     // Draw position plot (top third) with both traces
     this.drawPlotWithE(
       profile,
-      'position',
+      'pos',
       ePosition,
       maxTime,
       maxPosition,
@@ -287,7 +225,7 @@ class MotionSimulator {
     // Draw velocity plot (middle third) with both traces
     this.drawPlotWithE(
       profile,
-      'velocity',
+      'vel',
       eVelocity,
       maxTime,
       maxVelocity,
@@ -301,7 +239,7 @@ class MotionSimulator {
     // Draw acceleration plot (bottom third) with both traces
     this.drawPlotWithE(
       profile,
-      'acceleration',
+      'acc',
       eAcceleration,
       maxTime,
       maxAcceleration,
@@ -314,8 +252,8 @@ class MotionSimulator {
   }
 
   private drawPlotWithE(
-    profile: ProfilePoint[],
-    property: keyof ProfilePoint,
+    profile: Profile,
+    property: keyof Profile,
     eValues: number[],
     maxTime: number,
     maxValue: number,
@@ -335,13 +273,11 @@ class MotionSimulator {
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
 
-    for (let i = 0; i < profile.length; i++) {
-      const point = profile[i];
-      const x = (point.time / maxTime) * (width - 100) + 50;
-      const value =
-        property === 'acceleration'
-          ? Math.abs(point[property] as number) / 1000
-          : (point[property] as number);
+    const datapoints = profile[property];
+    for (let i = 0; i < datapoints.length; i++) {
+      const point = datapoints[i];
+      const x = (i / datapoints.length) * (width - 100) + 50;
+      const value = property === 'acc' ? Math.abs(point) / 1000 : point;
       const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
@@ -358,11 +294,10 @@ class MotionSimulator {
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
 
-    for (let i = 0; i < profile.length; i++) {
-      const point = profile[i];
-      const x = (point.time / maxTime) * (width - 100) + 50;
-      const value =
-        property === 'acceleration' ? eValues[i] / 1000 : eValues[i];
+    for (let i = 0; i < datapoints.length; i++) {
+      const point = datapoints[i];
+      const x = (i / datapoints.length) * (width - 100) + 50;
+      const value = property === 'acc' ? eValues[i] / 1000 : eValues[i];
       const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
@@ -403,9 +338,7 @@ class MotionSimulator {
       this.ctx.stroke();
       // Draw label
       this.ctx.fillText(
-        property === 'acceleration'
-          ? tickValue.toFixed(1) + 'k'
-          : tickValue.toFixed(1),
+        property === 'acc' ? tickValue.toFixed(1) + 'k' : tickValue.toFixed(1),
         40,
         y + 4
       );
@@ -418,15 +351,13 @@ class MotionSimulator {
     this.ctx.fillText(label, 45, yOffset + 15);
 
     // Calculate max/min for display
-    const originalValues = profile.map((p) =>
-      property === 'acceleration'
-        ? Math.abs(p[property] as number) / 1000
-        : (p[property] as number)
+    const originalValues = datapoints.map((v) =>
+      property === 'acc' ? Math.abs(v) / 1000 : v
     );
     const adjustedEValues = eValues.map((v) =>
-      property === 'acceleration' ? v / 1000 : v
+      property === 'acc' ? v / 1000 : v
     );
-    const suffix = property === 'acceleration' ? 'k' : '';
+    const suffix = property === 'acc' ? 'k' : '';
 
     // Display max/min for traces at bottom right
     this.ctx.fillStyle = '#333';
@@ -504,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
     distanceValue.textContent = distanceSlider.value + ' mm';
     rateValue.textContent = rateSlider.value + ' mm/s';
     accelerationValue.textContent =
-      (parseFloat(accelerationSlider.value) / 1000).toFixed(1) + ' mm/s²';
+      (parseFloat(accelerationSlider.value)) + ' mm/s²';
     overshootValue.textContent = overshootSlider.value;
     kValue.textContent = kSlider.value;
     lineWidthValue.textContent = lineWidthSlider.value + ' mm';
