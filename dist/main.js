@@ -1,0 +1,102 @@
+import { MotionSimulator } from './plotter.js';
+// Initialize the simulator
+document.addEventListener('DOMContentLoaded', () => {
+    const simulator = new MotionSimulator('motion-canvas');
+    // Get control elements
+    const trajectorySelect = document.getElementById('trajectory');
+    const distanceSlider = document.getElementById('distance');
+    const rateSlider = document.getElementById('rate');
+    const accelerationSlider = document.getElementById('acceleration');
+    const overshootSlider = document.getElementById('acc-overshoot');
+    const kSlider = document.getElementById('k-factor');
+    const lineWidthSlider = document.getElementById('line-width');
+    const layerHeightSlider = document.getElementById('layer-height');
+    const ftmFsSlider = document.getElementById('ftm-fs');
+    const smoothingTimeSlider = document.getElementById('smoothing-time');
+    const overshootGroup = document.getElementById('overshoot-group');
+    // Get value display elements
+    const distanceValue = document.getElementById('distance-value');
+    const rateValue = document.getElementById('rate-value');
+    const accelerationValue = document.getElementById('acceleration-value');
+    const overshootValue = document.getElementById('overshoot-value');
+    const kValue = document.getElementById('k-value');
+    const lineWidthValue = document.getElementById('line-width-value');
+    const layerHeightValue = document.getElementById('layer-height-value');
+    const ftmFsValue = document.getElementById('ftm-fs-value');
+    const smoothingTimeValue = document.getElementById('smoothing-time-value');
+    function getParams() {
+        return {
+            trajectory: trajectorySelect.value,
+            distance: parseFloat(distanceSlider.value),
+            rate: parseFloat(rateSlider.value),
+            acceleration: parseFloat(accelerationSlider.value),
+            accOvershoot: parseFloat(overshootSlider.value),
+            k: parseFloat(kSlider.value),
+            lineWidth: parseFloat(lineWidthSlider.value),
+            layerHeight: parseFloat(layerHeightSlider.value),
+            ftmFs: parseFloat(ftmFsSlider.value),
+            smoothingTime: parseFloat(smoothingTimeSlider.value),
+        };
+    }
+    function updateSimulator() {
+        const params = getParams();
+        simulator.updateProfile(params);
+    }
+    function updateProfileOnly() {
+        const params = getParams();
+        simulator.updateProfileOnly(params);
+    }
+    function updateScaling() {
+        simulator.updateScaling();
+    }
+    function updateDisplays() {
+        distanceValue.textContent = distanceSlider.value + ' mm';
+        rateValue.textContent = rateSlider.value + ' mm/s';
+        accelerationValue.textContent = parseFloat(accelerationSlider.value) + ' mm/s²';
+        overshootValue.textContent = overshootSlider.value + 'x';
+        kValue.textContent = kSlider.value;
+        lineWidthValue.textContent = lineWidthSlider.value + ' mm';
+        layerHeightValue.textContent = layerHeightSlider.value + ' mm';
+        ftmFsValue.textContent = ftmFsSlider.value + ' Hz';
+        smoothingTimeValue.textContent = smoothingTimeSlider.value + ' s';
+    }
+    function updateTrajectoryDisplay() {
+        if (trajectorySelect.value === '6poly') {
+            overshootGroup.classList.remove('conditional');
+        }
+        else {
+            overshootGroup.classList.add('conditional');
+        }
+    }
+    // Add event listeners
+    trajectorySelect.addEventListener('change', () => {
+        updateTrajectoryDisplay();
+        updateSimulator();
+    });
+    [
+        distanceSlider,
+        rateSlider,
+        accelerationSlider,
+        overshootSlider,
+        kSlider,
+        lineWidthSlider,
+        layerHeightSlider,
+        ftmFsSlider,
+        smoothingTimeSlider,
+    ].forEach((slider) => {
+        slider.addEventListener('input', () => {
+            updateDisplays();
+            updateProfileOnly();
+        });
+        slider.addEventListener('change', () => {
+            updateScaling();
+        });
+    });
+    // Initial setup
+    updateTrajectoryDisplay();
+    updateDisplays();
+    updateSimulator();
+    // Initial update
+    updateDisplays();
+    updateSimulator();
+});
