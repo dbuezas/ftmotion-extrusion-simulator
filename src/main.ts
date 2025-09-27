@@ -5,6 +5,9 @@ import {
 import { Poly6Profile, ProfilePoint as Poly6ProfilePoint } from './poly6.js';
 
 const dt = 0.001; // 1ms steps
+const layerHeight = 0.2; // mm
+const filamentDiameter = 1.75; // mm
+const filamentArea = Math.PI * Math.pow(filamentDiameter / 2, 2); // mm²
 
 interface MotionParameters {
   trajectory: 'trapezoidal' | '6poly';
@@ -124,24 +127,22 @@ class MotionSimulator {
     // Find max values for scaling
     const maxTime = Math.max(...profile.map((p) => p.time));
 
+    // Compute mm of filament per mm of travel
+    const mmFilamentPerMmTravel =
+      (this.currentParams!.lineWidth * layerHeight) / filamentArea;
+
     // Calculate extruder(t) values for each plot
-    const gPosition = profile.map(
+    const ePosition = profile.map(
       (p, i) =>
-        p.position +
-        (this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position))) / dt
+        (p.position + (this.k * profile[i].velocity) / dt) *
+        mmFilamentPerMmTravel
     );
-    const gVelocity = profile.map(
-      (p, i) =>
-        p.velocity +
-        (this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity))) / dt
+    const eVelocity = ePosition.map(
+      (p, i) => (p - (i == 0 ? 0 : ePosition[i - 1])) / dt
     );
-    const gAcceleration = profile.map(
-      (p, i) =>
-        p.acceleration +
-        (this.k *
-          (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration))) /
-          dt
-    ); // jerk not calculated, so derivative of acceleration is 0
+    const eAcceleration = eVelocity.map(
+      (p, i) => (p - (i == 0 ? 0 : eVelocity[i - 1])) / dt
+    );
 
     // Update historic max values only if overshoot didn't change
     const overshootChanged =
@@ -149,15 +150,15 @@ class MotionSimulator {
       this.currentParams.accOvershoot !== this.previousAccOvershoot;
     if (!overshootChanged) {
       // Calculate current max values including extruder(t) traces
-      const positionValues = [...profile.map((p) => p.position), ...gPosition];
+      const positionValues = [...profile.map((p) => p.position), ...ePosition];
       this.historicMaxPosition = Math.max(...positionValues.map(Math.abs));
 
-      const velocityValues = [...profile.map((p) => p.velocity), ...gVelocity];
+      const velocityValues = [...profile.map((p) => p.velocity), ...eVelocity];
       this.historicMaxVelocity = Math.max(...velocityValues.map(Math.abs));
 
       const accelerationValues = [
         ...profile.map((p) => Math.abs(p.acceleration) / 1000),
-        ...gAcceleration.map((a) => Math.abs(a) / 1000),
+        ...eAcceleration.map((a) => Math.abs(a) / 1000),
       ];
       this.historicMaxAcceleration = Math.max(...accelerationValues);
     }
@@ -173,10 +174,10 @@ class MotionSimulator {
     const maxAcceleration = Math.max(this.historicMaxAcceleration, 1);
     const plotHeight = (height - 40) / 3;
     // Draw position plot (top third) with both traces
-    this.drawPlotWithG(
+    this.drawPlotWithE(
       profile,
       'position',
-      gPosition,
+      ePosition,
       maxTime,
       maxPosition,
       0,
@@ -187,10 +188,10 @@ class MotionSimulator {
     );
 
     // Draw velocity plot (middle third) with both traces
-    this.drawPlotWithG(
+    this.drawPlotWithE(
       profile,
       'velocity',
-      gVelocity,
+      eVelocity,
       maxTime,
       maxVelocity,
       plotHeight,
@@ -201,10 +202,10 @@ class MotionSimulator {
     );
 
     // Draw acceleration plot (bottom third) with both traces
-    this.drawPlotWithG(
+    this.drawPlotWithE(
       profile,
       'acceleration',
-      gAcceleration,
+      eAcceleration,
       maxTime,
       maxAcceleration,
       2 * plotHeight,
@@ -215,10 +216,10 @@ class MotionSimulator {
     );
   }
 
-  private drawPlotWithG(
+  private drawPlotWithE(
     profile: ProfilePoint[],
     property: keyof ProfilePoint,
-    gValues: number[],
+    eValues: number[],
     maxTime: number,
     maxValue: number,
     yOffset: number,
@@ -264,7 +265,7 @@ class MotionSimulator {
       const point = profile[i];
       const x = (point.time / maxTime) * (width - 100) + 50;
       const value =
-        property === 'acceleration' ? gValues[i] / 1000 : gValues[i];
+        property === 'acceleration' ? eValues[i] / 1000 : eValues[i];
       const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
 
       if (i === 0) {
@@ -320,12 +321,12 @@ class MotionSimulator {
     this.ctx.fillText(label, 45, yOffset + 15);
 
     // Calculate max/min for display
-    const originalValues = profile.map(p =>
+    const originalValues = profile.map((p) =>
       property === 'acceleration'
-        ? Math.abs((p[property] as number)) / 1000
+        ? Math.abs(p[property] as number) / 1000
         : (p[property] as number)
     );
-    const adjustedGValues = gValues.map(v =>
+    const adjustedEValues = eValues.map((v) =>
       property === 'acceleration' ? v / 1000 : v
     );
     const suffix = property === 'acceleration' ? 'k' : '';
@@ -335,15 +336,15 @@ class MotionSimulator {
     this.ctx.font = '10px Arial';
     this.ctx.textAlign = 'right';
     this.ctx.fillText(
-      `Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
+      `Motion Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
       width - 50,
-      yOffset + plotHeight/2 + 10
+      yOffset + plotHeight / 2 + 10
     );
 
     this.ctx.fillText(
-      `w / linear advance Max: ${Math.max(...adjustedGValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedGValues).toFixed(1)}${suffix}`,
+      `Extruder Max: ${Math.max(...adjustedEValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedEValues).toFixed(1)}${suffix}`,
       width - 50,
-      yOffset + plotHeight/2 + 20
+      yOffset + plotHeight / 2 + 20
     );
     this.ctx.textAlign = 'left'; // reset
   }
@@ -368,7 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
     'acc-overshoot'
   ) as HTMLInputElement;
   const kSlider = document.getElementById('k-factor') as HTMLInputElement;
-  const lineWidthSlider = document.getElementById('line-width') as HTMLInputElement;
+  const lineWidthSlider = document.getElementById(
+    'line-width'
+  ) as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements
