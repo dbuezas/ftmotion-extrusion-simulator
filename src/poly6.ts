@@ -141,7 +141,9 @@ export class Poly6Profile {
       positions.push(position);
       time += dt;
     }
-
+    positions.push(positions.at(-1)!)
+    positions.push(positions.at(-1)!)
+    positions.push(positions.at(-1)!)
     // Second pass: numerically differentiate to get velocity and acceleration
     const velocities: number[] = [];
     for (let i = 0; i < positions.length; i++) {

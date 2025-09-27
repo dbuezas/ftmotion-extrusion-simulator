@@ -12,7 +12,8 @@ interface MotionParameters {
   rate: number; // mm/s
   acceleration: number; // mm/s²
   accOvershoot: number; // factor
-  k: number; // factor for g(t) calculation
+  k: number; // linear advance
+  lineWidth: number; // mm
 }
 
 interface ProfilePoint {
@@ -123,7 +124,7 @@ class MotionSimulator {
     // Find max values for scaling
     const maxTime = Math.max(...profile.map((p) => p.time));
 
-    // Calculate g(t) values for each plot
+    // Calculate extruder(t) values for each plot
     const gPosition = profile.map(
       (p, i) =>
         p.position +
@@ -147,7 +148,7 @@ class MotionSimulator {
       this.currentParams &&
       this.currentParams.accOvershoot !== this.previousAccOvershoot;
     if (!overshootChanged) {
-      // Calculate current max values including g(t) traces
+      // Calculate current max values including extruder(t) traces
       const positionValues = [...profile.map((p) => p.position), ...gPosition];
       this.historicMaxPosition = Math.max(...positionValues.map(Math.abs));
 
@@ -210,7 +211,7 @@ class MotionSimulator {
       plotHeight,
       'red',
       'purple',
-      'Acceleration (k mm/s²)'
+      'Acceleration (mm/s²)'
     );
   }
 
@@ -254,7 +255,7 @@ class MotionSimulator {
 
     this.ctx.stroke();
 
-    // Draw g(t) trace
+    // Draw extruder(t) trace
     this.ctx.strokeStyle = color2;
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
@@ -303,14 +304,48 @@ class MotionSimulator {
       this.ctx.lineTo(55, y);
       this.ctx.stroke();
       // Draw label
-      this.ctx.fillText(tickValue.toFixed(1), 40, y + 4);
+      this.ctx.fillText(
+        property === 'acceleration'
+          ? tickValue.toFixed(1) + 'k'
+          : tickValue.toFixed(1),
+        40,
+        y + 4
+      );
     }
     this.ctx.textAlign = 'left'; // reset
 
     // Draw label
     this.ctx.fillStyle = color1;
     this.ctx.font = '14px Arial';
-    this.ctx.fillText(label, 10, yOffset + 30);
+    this.ctx.fillText(label, 45, yOffset + 15);
+
+    // Calculate max/min for display
+    const originalValues = profile.map(p =>
+      property === 'acceleration'
+        ? Math.abs((p[property] as number)) / 1000
+        : (p[property] as number)
+    );
+    const adjustedGValues = gValues.map(v =>
+      property === 'acceleration' ? v / 1000 : v
+    );
+    const suffix = property === 'acceleration' ? 'k' : '';
+
+    // Display max/min for traces at bottom right
+    this.ctx.fillStyle = '#333';
+    this.ctx.font = '10px Arial';
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(
+      `Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
+      width - 50,
+      yOffset + plotHeight/2 + 10
+    );
+
+    this.ctx.fillText(
+      `w / linear advance Max: ${Math.max(...adjustedGValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedGValues).toFixed(1)}${suffix}`,
+      width - 50,
+      yOffset + plotHeight/2 + 20
+    );
+    this.ctx.textAlign = 'left'; // reset
   }
 }
 
@@ -333,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'acc-overshoot'
   ) as HTMLInputElement;
   const kSlider = document.getElementById('k-factor') as HTMLInputElement;
+  const lineWidthSlider = document.getElementById('line-width') as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements
@@ -341,6 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const accelerationValue = document.getElementById('acceleration-value')!;
   const overshootValue = document.getElementById('overshoot-value')!;
   const kValue = document.getElementById('k-value')!;
+  const lineWidthValue = document.getElementById('line-width-value')!;
 
   function updateSimulator() {
     const params: MotionParameters = {
@@ -350,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
       acceleration: parseFloat(accelerationSlider.value),
       accOvershoot: parseFloat(overshootSlider.value),
       k: parseFloat(kSlider.value),
+      lineWidth: parseFloat(lineWidthSlider.value),
     };
     simulator.updateProfile(params);
   }
@@ -358,9 +396,10 @@ document.addEventListener('DOMContentLoaded', () => {
     distanceValue.textContent = distanceSlider.value + ' mm';
     rateValue.textContent = rateSlider.value + ' mm/s';
     accelerationValue.textContent =
-      (parseFloat(accelerationSlider.value) / 1000).toFixed(1) + 'k mm/s²';
+      (parseFloat(accelerationSlider.value) / 1000).toFixed(1) + ' mm/s²';
     overshootValue.textContent = overshootSlider.value;
     kValue.textContent = kSlider.value;
+    lineWidthValue.textContent = lineWidthSlider.value + ' mm';
   }
 
   function updateTrajectoryDisplay() {
@@ -383,6 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
     accelerationSlider,
     overshootSlider,
     kSlider,
+    lineWidthSlider,
   ].forEach((slider) => {
     slider.addEventListener('input', () => {
       updateDisplays();

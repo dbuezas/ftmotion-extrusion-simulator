@@ -48,6 +48,9 @@ export class TrapezoidalProfile {
             positions.push(position);
             time += dt;
         }
+        positions.push(positions.at(-1));
+        positions.push(positions.at(-1));
+        positions.push(positions.at(-1));
         // Second pass: numerically differentiate to get velocity and acceleration
         const velocities = [];
         for (let i = 0; i < positions.length; i++) {
