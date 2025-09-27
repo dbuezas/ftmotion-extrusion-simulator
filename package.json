@@ -4,7 +4,7 @@
   "description": "S-curve motion profile simulator",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p docs && cp index.html styles.css docs/ && cp -r dist docs/",
     "watch": "tsc --watch",
     "start": "http-server . -p 3000",
     "dev": "tsc --watch & http-server . -p 3000",
