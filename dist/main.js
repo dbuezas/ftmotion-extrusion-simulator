@@ -26,20 +26,32 @@ class MotionSimulator {
     constructor(canvasId) {
         this.profile = null;
         this.k = 0.5;
+        this.historicMaxPosition = 0;
+        this.historicMaxVelocity = 0;
+        this.historicMaxAcceleration = 0;
+        this.previousAccOvershoot = 1.5;
+        this.currentParams = null;
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
     }
     resizeCanvas() {
-        const rect = this.canvas.getBoundingClientRect();
+        this.canvas.style.display = "none";
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.style.display = "";
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
         this.canvas.style.width = rect.width + 'px';
         this.canvas.style.height = rect.height + 'px';
+        // Redraw after resize to update axes
+        if (this.profile) {
+            this.draw();
+        }
     }
     updateProfile(params) {
+        this.currentParams = params;
         this.profile = new MotionProfile(params);
         this.k = params.k;
         this.draw();
@@ -51,38 +63,42 @@ class MotionSimulator {
         if (profile.length === 0)
             return;
         this.ctx.clearRect(0, 0, this.canvas.width / window.devicePixelRatio, this.canvas.height / window.devicePixelRatio);
-        const width = this.canvas.width / window.devicePixelRatio;
         const height = this.canvas.height / window.devicePixelRatio;
         // Find max values for scaling
         const maxTime = Math.max(...profile.map(p => p.time));
-        const maxPosition = Math.max(...profile.map(p => p.position));
-        const maxVelocity = Math.max(...profile.map(p => p.velocity));
-        const maxAcceleration = Math.max(...profile.map(p => Math.abs(p.acceleration)));
         // Calculate g(t) values for each plot
         const gPosition = profile.map((p, i) => p.position + this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position)) / dt);
         const gVelocity = profile.map((p, i) => p.velocity + this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity)) / dt);
         const gAcceleration = profile.map((p, i) => p.acceleration + this.k * (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration)) / dt); // jerk not calculated, so derivative of acceleration is 0
-        // Calculate min/max values including both original and g(t) traces
-        const positionValues = [...profile.map(p => p.position), ...gPosition];
-        const velocityValues = [...profile.map(p => p.velocity), ...gVelocity];
-        const accelerationValues = [...profile.map(p => Math.abs(p.acceleration)), ...gAcceleration.map(Math.abs)];
-        const positionMin = Math.min(...positionValues);
-        const positionMax = Math.max(...positionValues);
-        const positionRange = Math.max(Math.abs(positionMin), Math.abs(positionMax));
-        const velocityMin = Math.min(...velocityValues);
-        const velocityMax = Math.max(...velocityValues);
-        const velocityRange = Math.max(Math.abs(velocityMin), Math.abs(velocityMax));
-        const maxAccelerationWithG = Math.max(...accelerationValues);
+        // Update historic max values only if overshoot didn't change
+        const overshootChanged = this.currentParams && this.currentParams.accOvershoot !== this.previousAccOvershoot;
+        if (!overshootChanged) {
+            // Calculate current max values including g(t) traces
+            const positionValues = [...profile.map(p => p.position), ...gPosition];
+            this.historicMaxPosition = Math.max(...positionValues.map(Math.abs));
+            const velocityValues = [...profile.map(p => p.velocity), ...gVelocity];
+            this.historicMaxVelocity = Math.max(...velocityValues.map(Math.abs));
+            const accelerationValues = [...profile.map(p => Math.abs(p.acceleration) / 1000), ...gAcceleration.map(a => Math.abs(a) / 1000)];
+            this.historicMaxAcceleration = Math.max(...accelerationValues);
+        }
+        // Update previous overshoot
+        if (this.currentParams) {
+            this.previousAccOvershoot = this.currentParams.accOvershoot;
+        }
+        // Use historic max values for scaling (only increases)
+        const maxPosition = Math.max(this.historicMaxPosition, 1); // minimum 1 to avoid division by zero
+        const maxVelocity = Math.max(this.historicMaxVelocity, 1);
+        const maxAcceleration = Math.max(this.historicMaxAcceleration, 1);
+        const plotHeight = (height - 40) / 3;
         // Draw position plot (top third) with both traces
-        this.drawPlotWithG(profile, 'position', gPosition, maxTime, positionRange, 0, height / 3, 'blue', 'purple', 'Position (mm)');
+        this.drawPlotWithG(profile, 'position', gPosition, maxTime, maxPosition, 0, plotHeight, 'blue', 'purple', 'Position (mm)');
         // Draw velocity plot (middle third) with both traces
-        this.drawPlotWithG(profile, 'velocity', gVelocity, maxTime, velocityRange, height / 3, height / 3, 'green', 'purple', 'Velocity (mm/s)');
+        this.drawPlotWithG(profile, 'velocity', gVelocity, maxTime, maxVelocity, plotHeight, plotHeight, 'green', 'purple', 'Velocity (mm/s)');
         // Draw acceleration plot (bottom third) with both traces
-        this.drawPlotWithG(profile, 'acceleration', gAcceleration, maxTime, maxAccelerationWithG, 2 * height / 3, height / 3, 'red', 'purple', 'Acceleration (mm/s²)');
+        this.drawPlotWithG(profile, 'acceleration', gAcceleration, maxTime, maxAcceleration, 2 * plotHeight, plotHeight, 'red', 'purple', 'Acceleration (k mm/s²)');
     }
     drawPlotWithG(profile, property, gValues, maxTime, maxValue, yOffset, plotHeight, color1, color2, label) {
         const width = this.canvas.width / window.devicePixelRatio;
-        const height = this.canvas.height / window.devicePixelRatio;
         // Calculate center line (zero) position
         const centerY = yOffset + plotHeight / 2;
         // Draw original function
@@ -92,7 +108,7 @@ class MotionSimulator {
         for (let i = 0; i < profile.length; i++) {
             const point = profile[i];
             const x = (point.time / maxTime) * (width - 100) + 50;
-            const value = property === 'acceleration' ? Math.abs(point[property]) : point[property];
+            const value = property === 'acceleration' ? Math.abs(point[property]) / 1000 : point[property];
             const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
             if (i === 0) {
                 this.ctx.moveTo(x, y);
@@ -109,7 +125,7 @@ class MotionSimulator {
         for (let i = 0; i < profile.length; i++) {
             const point = profile[i];
             const x = (point.time / maxTime) * (width - 100) + 50;
-            const value = gValues[i];
+            const value = property === 'acceleration' ? gValues[i] / 1000 : gValues[i];
             const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
             if (i === 0) {
                 this.ctx.moveTo(x, y);
@@ -130,6 +146,25 @@ class MotionSimulator {
         this.ctx.moveTo(50, yOffset + 20);
         this.ctx.lineTo(50, yOffset + plotHeight - 20);
         this.ctx.stroke();
+        // Draw y-axis scale
+        const numTicks = 5;
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 1;
+        this.ctx.fillStyle = '#333';
+        this.ctx.font = '12px Arial';
+        this.ctx.textAlign = 'right';
+        for (let i = 0; i < numTicks; i++) {
+            const tickValue = -maxValue + (i / (numTicks - 1)) * 2 * maxValue;
+            const y = centerY - (tickValue / maxValue) * (plotHeight / 2 - 20);
+            // Draw tick mark
+            this.ctx.beginPath();
+            this.ctx.moveTo(45, y);
+            this.ctx.lineTo(55, y);
+            this.ctx.stroke();
+            // Draw label
+            this.ctx.fillText(tickValue.toFixed(1), 40, y + 4);
+        }
+        this.ctx.textAlign = 'left'; // reset
         // Draw label
         this.ctx.fillStyle = color1;
         this.ctx.font = '14px Arial';
@@ -167,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDisplays() {
         distanceValue.textContent = distanceSlider.value + ' mm';
         rateValue.textContent = rateSlider.value + ' mm/s';
-        accelerationValue.textContent = accelerationSlider.value + ' mm/s²';
+        accelerationValue.textContent = (parseFloat(accelerationSlider.value) / 1000).toFixed(1) + 'k mm/s²';
         overshootValue.textContent = overshootSlider.value;
         kValue.textContent = kSlider.value;
     }
