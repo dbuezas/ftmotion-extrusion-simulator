@@ -1,9 +1,4 @@
-export function trapezoidalProfile(
-  distance: number,
-  rate: number,
-  acceleration: number,
-  dt: number
-): number[] {
+export function trapezoidalProfile(distance: number, rate: number, acceleration: number, dt: number): number[] {
   const profile: number[] = [];
 
   // Use the same timing calculation as Marlin 6POLY
@@ -12,9 +7,7 @@ export function trapezoidalProfile(
   let nominal_speed = rate;
 
   const invA = 1.0 / acceleration;
-  const ldiff =
-    distance +
-    0.5 * invA * (initial_speed * initial_speed + final_speed * final_speed);
+  const ldiff = distance + 0.5 * invA * (initial_speed * initial_speed + final_speed * final_speed);
 
   let T2 = ldiff / nominal_speed - invA * nominal_speed;
   if (T2 < 0.0) {
@@ -39,17 +32,12 @@ export function trapezoidalProfile(
     } else if (time <= T1 + T2) {
       // Coast
       const t_coast = time - T1;
-      position =
-        0.5 * (initial_speed + nominal_speed) * T1 + nominal_speed * t_coast;
+      position = 0.5 * (initial_speed + nominal_speed) * T1 + nominal_speed * t_coast;
     } else {
       // Decel phase
       const t_decel = time - (T1 + T2);
-      const pos_at_decel_start =
-        0.5 * (initial_speed + nominal_speed) * T1 + nominal_speed * T2;
-      position =
-        pos_at_decel_start +
-        nominal_speed * t_decel -
-        0.5 * acceleration * t_decel * t_decel;
+      const pos_at_decel_start = 0.5 * (initial_speed + nominal_speed) * T1 + nominal_speed * T2;
+      position = pos_at_decel_start + nominal_speed * t_decel - 0.5 * acceleration * t_decel * t_decel;
     }
 
     profile.push(position);

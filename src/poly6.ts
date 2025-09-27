@@ -1,4 +1,3 @@
-
 export function poly6Profile(
   distance: number,
   rate: number,
@@ -15,9 +14,7 @@ export function poly6Profile(
 
   // --- Trapezoid timings (unchanged) ---
   const invA = 1.0 / acceleration;
-  const ldiff =
-    distance +
-    0.5 * invA * (initial_speed * initial_speed + final_speed * final_speed);
+  const ldiff = distance + 0.5 * invA * (initial_speed * initial_speed + final_speed * final_speed);
 
   let T2 = ldiff / nominal_speed - invA * nominal_speed;
   if (T2 < 0.0) {
@@ -97,9 +94,7 @@ export function poly6Profile(
     if (time < T1) {
       // Accel phase: u = time/T1
       const u = time / T1;
-      position =
-        s5_u(0.0, initial_speed, T1, acc_c3, acc_c4, acc_c5, u) +
-        acc_c6 * K_u(0.0, initial_speed, T1, u);
+      position = s5_u(0.0, initial_speed, T1, acc_c3, acc_c4, acc_c5, u) + acc_c6 * K_u(0.0, initial_speed, T1, u);
     } else if (time <= T1 + T2) {
       // Coast
       position = pos_before_coast + nominal_speed * (time - T1);
@@ -108,15 +103,7 @@ export function poly6Profile(
       const tau = time - (T1 + T2);
       const u = tau / T3;
       position =
-        s5_u(
-          pos_after_coast,
-          nominal_speed,
-          T3,
-          dec_c3,
-          dec_c4,
-          dec_c5,
-          u
-        ) +
+        s5_u(pos_after_coast, nominal_speed, T3, dec_c3, dec_c4, dec_c5, u) +
         dec_c6 * K_u(pos_after_coast, nominal_speed, T3, u);
     }
 
@@ -129,15 +116,7 @@ export function poly6Profile(
 }
 
 // Utility functions ported from Marlin
-function s5_u(
-  s0: number,
-  v0: number,
-  Ts: number,
-  c3: number,
-  c4: number,
-  c5: number,
-  u: number
-): number {
+function s5_u(s0: number, v0: number, Ts: number, c3: number, c4: number, c5: number, u: number): number {
   const u2 = u * u,
     u3 = u2 * u,
     u4 = u3 * u,

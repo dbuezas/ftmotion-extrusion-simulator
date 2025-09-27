@@ -8,8 +8,9 @@
     "watch": "tsc --watch",
     "start": "http-server . -p 3000",
     "dev": "tsc --watch & http-server . -p 3000",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format": "eslint src/**/*.ts --fix && prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint src/**/*.ts"
   },
   "keywords": [
     "motion",
@@ -19,8 +20,13 @@
   ],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
     "http-server": "^14.1.1",
     "prettier": "^3.6.2",
     "typescript": "^5.0.0"

@@ -21,8 +21,7 @@ export interface MotionParameters {
 
 export type Profile = { pos: number[]; vel: number[]; acc: number[] };
 
-const derivate = (arr: number[], dt: number) =>
-  arr.map((p, i) => (i === 0 ? 0 : (p - arr[i - 1]) / dt));
+const derivate = (arr: number[], dt: number) => arr.map((p, i) => (i === 0 ? 0 : (p - arr[i - 1]) / dt));
 
 function smoothen(positions: number[], s_time: number, ts: number, fs: number, order: number): number[] {
   let alpha = 0;
@@ -39,8 +38,7 @@ function smoothen(positions: number[], s_time: number, ts: number, fs: number, o
     for (let val of padded) {
       let smooth_val = val;
       for (let i = 0; i < smoothing_pass.length; ++i) {
-        smoothing_pass[i] +=
-          (smooth_val - smoothing_pass[i]) * alpha;
+        smoothing_pass[i] += (smooth_val - smoothing_pass[i]) * alpha;
         smooth_val = smoothing_pass[i];
       }
       smoothed.push(smooth_val);
@@ -51,16 +49,7 @@ function smoothen(positions: number[], s_time: number, ts: number, fs: number, o
 }
 
 export function calculateMotionProfile(params: MotionParameters): Profile {
-  const {
-    trajectory,
-    distance,
-    rate,
-    acceleration,
-    accOvershoot,
-    layerHeight,
-    ftmFs,
-    smoothingTime,
-  } = params;
+  const { trajectory, distance, rate, acceleration, accOvershoot, layerHeight, ftmFs, smoothingTime } = params;
   const dt = 1 / ftmFs;
 
   let posProfile: number[];

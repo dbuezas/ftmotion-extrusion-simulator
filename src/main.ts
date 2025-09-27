@@ -6,30 +6,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const simulator = new MotionSimulator('motion-canvas');
 
   // Get control elements
-  const trajectorySelect = document.getElementById(
-    'trajectory'
-  ) as HTMLSelectElement;
-  const distanceSlider = document.getElementById(
-    'distance'
-  ) as HTMLInputElement;
+  const trajectorySelect = document.getElementById('trajectory') as HTMLSelectElement;
+  const distanceSlider = document.getElementById('distance') as HTMLInputElement;
   const rateSlider = document.getElementById('rate') as HTMLInputElement;
-  const accelerationSlider = document.getElementById(
-    'acceleration'
-  ) as HTMLInputElement;
-  const overshootSlider = document.getElementById(
-    'acc-overshoot'
-  ) as HTMLInputElement;
+  const accelerationSlider = document.getElementById('acceleration') as HTMLInputElement;
+  const overshootSlider = document.getElementById('acc-overshoot') as HTMLInputElement;
   const kSlider = document.getElementById('k-factor') as HTMLInputElement;
-  const lineWidthSlider = document.getElementById(
-    'line-width'
-  ) as HTMLInputElement;
-  const layerHeightSlider = document.getElementById(
-    'layer-height'
-  ) as HTMLInputElement;
+  const lineWidthSlider = document.getElementById('line-width') as HTMLInputElement;
+  const layerHeightSlider = document.getElementById('layer-height') as HTMLInputElement;
   const ftmFsSlider = document.getElementById('ftm-fs') as HTMLInputElement;
-  const smoothingTimeSlider = document.getElementById(
-    'smoothing-time'
-  ) as HTMLInputElement;
+  const smoothingTimeSlider = document.getElementById('smoothing-time') as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements
@@ -75,8 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateDisplays() {
     distanceValue.textContent = distanceSlider.value + ' mm';
     rateValue.textContent = rateSlider.value + ' mm/s';
-    accelerationValue.textContent =
-      parseFloat(accelerationSlider.value) + ' mm/s²';
+    accelerationValue.textContent = parseFloat(accelerationSlider.value) + ' mm/s²';
     overshootValue.textContent = overshootSlider.value;
     kValue.textContent = kSlider.value;
     lineWidthValue.textContent = lineWidthSlider.value + ' mm';
