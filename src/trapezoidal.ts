@@ -1,12 +1,5 @@
-export interface ProfilePoint {
-  time: number;
-  position: number;
-  velocity: number;
-  acceleration: number;
-}
-
 export class TrapezoidalProfile {
-  private profile: ProfilePoint[] = [];
+  private profile: number[] = [];
 
   constructor(distance: number, rate: number, acceleration: number, dt: number) {
     this.generateProfile(distance, rate, acceleration, dt);
@@ -37,8 +30,7 @@ export class TrapezoidalProfile {
     const T1 = (nominal_speed - initial_speed) * invA;
     const T3 = (nominal_speed - final_speed) * invA;
 
-    // Generate profile points - first pass: calculate positions
-    const positions: number[] = [];
+    // Generate profile points - calculate positions
     let time = 0;
     const totalTime = T1 + T2 + T3;
 
@@ -65,37 +57,13 @@ export class TrapezoidalProfile {
           0.5 * acceleration * t_decel * t_decel;
       }
 
-      positions.push(position);
+      this.profile.push(position);
+
       time += dt;
     }
-    positions.push(positions.at(-1)!)
-    positions.push(positions.at(-1)!)
-    positions.push(positions.at(-1)!)
-    // Second pass: numerically differentiate to get velocity and acceleration
-    const velocities: number[] = [];
-    for (let i = 0; i < positions.length; i++) {
-      // Calculate velocity using backward difference: vel[i] = (pos[i] - pos[i-1]) / dt
-      const velocity = i === 0 ? 0 : (positions[i] - positions[i - 1]) / dt;
-      velocities.push(velocity);
-    }
-
-    // Third pass: differentiate velocity to get acceleration
-    for (let i = 0; i < positions.length; i++) {
-      // Calculate acceleration using backward difference: acc[i] = (vel[i] - vel[i-1]) / dt
-      const acceleration_val =
-        i === 0 ? 0 : (velocities[i] - velocities[i - 1]) / dt;
-
-      this.profile.push({
-        time: i * dt,
-        position: positions[i],
-        velocity: velocities[i],
-        acceleration: acceleration_val,
-      });
-    }
-
   }
 
-  getProfile(): ProfilePoint[] {
+  getProfile(): number[] {
     return this.profile;
   }
 }

@@ -1,8 +1,5 @@
-import {
-  TrapezoidalProfile,
-  ProfilePoint as TrapezoidalProfilePoint,
-} from './trapezoidal.js';
-import { Poly6Profile, ProfilePoint as Poly6ProfilePoint } from './poly6.js';
+import { TrapezoidalProfile } from './trapezoidal.js';
+import { Poly6Profile } from './poly6.js';
 
 const layerHeight = 0.2; // mm
 const filamentDiameter = 1.75; // mm
@@ -21,7 +18,7 @@ class AxisSmoothing {
 
   set_smoothing_time(s_time: number, ts: number, fs: number, order: number) {
     if (s_time > 0.001) {
-      this.alpha = 1.0 - Math.exp(-ts * order / s_time);
+      this.alpha = 1.0 - Math.exp((-ts * order) / s_time);
       this.delay_samples = s_time * fs;
     } else {
       this.alpha = 0;
@@ -30,16 +27,26 @@ class AxisSmoothing {
   }
 }
 
-function smoothen(value: number, smoothing: AxisSmoothing): number {
+function smoothen(positions: number[], smoothing: AxisSmoothing): number[] {
   if (smoothing.alpha > 0) {
-    let smooth_val = value;
-    for (let i = 0; i < smoothing.smoothing_pass.length; ++i) {
-      smoothing.smoothing_pass[i] += (smooth_val - smoothing.smoothing_pass[i]) * smoothing.alpha;
-      smooth_val = smoothing.smoothing_pass[i];
+    const padCount = Math.ceil(smoothing.delay_samples);
+    const padded = [
+      ...positions,
+      ...Array(padCount).fill(positions.at(-1)!),
+    ];
+    const smoothed: number[] = [];
+    for (let val of padded) {
+      let smooth_val = val;
+      for (let i = 0; i < smoothing.smoothing_pass.length; ++i) {
+        smoothing.smoothing_pass[i] +=
+          (smooth_val - smoothing.smoothing_pass[i]) * smoothing.alpha;
+        smooth_val = smoothing.smoothing_pass[i];
+      }
+      smoothed.push(smooth_val);
     }
-    return smooth_val;
+    return smoothed.slice(smoothing.delay_samples);
   }
-  return value;
+  return positions;
 }
 
 interface MotionParameters {
@@ -70,11 +77,42 @@ class MotionProfile {
     this.calculateProfile();
   }
 
+  private calculateVelAcc(posProfile: number[], dt: number): ProfilePoint[] {
+    const profile: ProfilePoint[] = [];
+    profile.push({
+      time: 0,
+      position: posProfile[0],
+      velocity:0,
+      acceleration:0,
+    });
+    for (let i = 1; i < posProfile.length; i++) {
+      // Calculate velocity using backward difference: vel[i] = (pos[i] - pos[i-1]) / dt
+      const position = posProfile[i];
+      const velocity = (position - profile[i - 1].position) / dt;
+      const acceleration = (velocity - profile[i - 1].velocity) / dt;
+      profile.push({
+        time: dt * i,
+        position,
+        velocity,
+        acceleration, // will calculate next
+      });
+    }
+    return profile;
+  }
+
   private calculateProfile(): void {
-    const { trajectory, distance, rate, acceleration, accOvershoot, ftmFs, smoothingTime } =
-      this.params;
+    const {
+      trajectory,
+      distance,
+      rate,
+      acceleration,
+      accOvershoot,
+      ftmFs,
+      smoothingTime,
+    } = this.params;
     const dt = 1 / ftmFs;
 
+    let posProfile: number[];
     if (trajectory === '6poly') {
       const poly6Profile = new Poly6Profile(
         distance,
@@ -83,7 +121,7 @@ class MotionProfile {
         accOvershoot,
         dt
       );
-      this.profile = poly6Profile.getProfile();
+      posProfile = poly6Profile.getProfile();
     } else {
       const trapezoidalProfile = new TrapezoidalProfile(
         distance,
@@ -91,32 +129,22 @@ class MotionProfile {
         acceleration,
         dt
       );
-      this.profile = trapezoidalProfile.getProfile();
+      posProfile = trapezoidalProfile.getProfile();
     }
 
     // Apply axis smoothing if smoothingTime > 0
     if (smoothingTime > 0) {
       const smoothing = new AxisSmoothing(FTM_SMOOTHING_ORDER);
-      smoothing.set_smoothing_time(smoothingTime, dt, ftmFs, FTM_SMOOTHING_ORDER);
+      smoothing.set_smoothing_time(
+        smoothingTime,
+        dt,
+        ftmFs,
+        FTM_SMOOTHING_ORDER
+      );
 
-      for (let i = 0; i < this.profile.length; i++) {
-        this.profile[i].position = smoothen(this.profile[i].position, smoothing);
-      }
-
-      // Recalculate velocity and acceleration after smoothing position
-      for (let i = 0; i < this.profile.length; i++) {
-        if (i === 0) {
-          this.profile[i].velocity = 0;
-          this.profile[i].acceleration = 0;
-        } else if (i === this.profile.length - 1) {
-          this.profile[i].velocity = 0;
-          this.profile[i].acceleration = 0;
-        } else {
-          this.profile[i].velocity = (this.profile[i + 1].position - this.profile[i - 1].position) / (2 * dt);
-          this.profile[i].acceleration = (this.profile[i + 1].velocity - this.profile[i - 1].velocity) / (2 * dt);
-        }
-      }
+      posProfile = smoothen(posProfile, smoothing);
     }
+    this.profile = this.calculateVelAcc(posProfile, dt);
   }
 
   getProfile(): ProfilePoint[] {
@@ -442,7 +470,9 @@ document.addEventListener('DOMContentLoaded', () => {
     'line-width'
   ) as HTMLInputElement;
   const ftmFsSlider = document.getElementById('ftm-fs') as HTMLInputElement;
-  const smoothingTimeSlider = document.getElementById('smoothing-time') as HTMLInputElement;
+  const smoothingTimeSlider = document.getElementById(
+    'smoothing-time'
+  ) as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements

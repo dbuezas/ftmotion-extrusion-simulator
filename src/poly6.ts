@@ -1,12 +1,6 @@
-export interface ProfilePoint {
-  time: number;
-  position: number;
-  velocity: number;
-  acceleration: number;
-}
 
 export class Poly6Profile {
-  private profile: ProfilePoint[] = [];
+  private profile: number[] = [];
 
   constructor(
     distance: number,
@@ -104,8 +98,7 @@ export class Poly6Profile {
       dec_c6 = (Ts * Ts * (a_mid_target - a5_mid)) / Kpp_mid;
     }
 
-    // Generate profile points - first pass: calculate positions
-    const positions: number[] = [];
+    // Generate profile points - calculate positions
     let time = 0;
     const totalTime = T1 + T2 + T3;
 
@@ -138,33 +131,11 @@ export class Poly6Profile {
           dec_c6 * this.K_u(pos_after_coast, nominal_speed, T3, u);
       }
 
-      positions.push(position);
+      this.profile.push(position);
+
       time += dt;
     }
-    positions.push(positions.at(-1)!)
-    positions.push(positions.at(-1)!)
-    positions.push(positions.at(-1)!)
-    // Second pass: numerically differentiate to get velocity and acceleration
-    const velocities: number[] = [];
-    for (let i = 0; i < positions.length; i++) {
-      // Calculate velocity using backward difference: vel[i] = (pos[i] - pos[i-1]) / dt
-      const velocity = i === 0 ? 0 : (positions[i] - positions[i - 1]) / dt;
-      velocities.push(velocity);
-    }
 
-    // Third pass: differentiate velocity to get acceleration
-    for (let i = 0; i < positions.length; i++) {
-      // Calculate acceleration using backward difference: acc[i] = (vel[i] - vel[i-1]) / dt
-      const acceleration_val =
-        i === 0 ? 0 : (velocities[i] - velocities[i - 1]) / dt;
-
-      this.profile.push({
-        time: i * dt,
-        position: positions[i],
-        velocity: velocities[i],
-        acceleration: acceleration_val,
-      });
-    }
   }
 
   // Utility functions ported from Marlin
@@ -194,7 +165,7 @@ export class Poly6Profile {
     return u * u * u * (um1 * um1 * um1);
   }
 
-  getProfile(): ProfilePoint[] {
+  getProfile(): number[] {
     return this.profile;
   }
 }
