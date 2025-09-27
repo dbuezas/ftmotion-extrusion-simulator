@@ -1,4 +1,4 @@
-import { TrapezoidalProfile } from './trapezoidal.js';
+import { TrapezoidalProfile, } from './trapezoidal.js';
 import { Poly6Profile } from './poly6.js';
 const dt = 0.001; // 1ms steps
 class MotionProfile {
@@ -37,9 +37,9 @@ class MotionSimulator {
         window.addEventListener('resize', () => this.resizeCanvas());
     }
     resizeCanvas() {
-        this.canvas.style.display = "none";
+        this.canvas.style.display = 'none';
         const rect = this.canvas.parentElement.getBoundingClientRect();
-        this.canvas.style.display = "";
+        this.canvas.style.display = '';
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
         this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
@@ -65,20 +65,29 @@ class MotionSimulator {
         this.ctx.clearRect(0, 0, this.canvas.width / window.devicePixelRatio, this.canvas.height / window.devicePixelRatio);
         const height = this.canvas.height / window.devicePixelRatio;
         // Find max values for scaling
-        const maxTime = Math.max(...profile.map(p => p.time));
+        const maxTime = Math.max(...profile.map((p) => p.time));
         // Calculate g(t) values for each plot
-        const gPosition = profile.map((p, i) => p.position + this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position)) / dt);
-        const gVelocity = profile.map((p, i) => p.velocity + this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity)) / dt);
-        const gAcceleration = profile.map((p, i) => p.acceleration + this.k * (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration)) / dt); // jerk not calculated, so derivative of acceleration is 0
+        const gPosition = profile.map((p, i) => p.position +
+            (this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position))) / dt);
+        const gVelocity = profile.map((p, i) => p.velocity +
+            (this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity))) / dt);
+        const gAcceleration = profile.map((p, i) => p.acceleration +
+            (this.k *
+                (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration))) /
+                dt); // jerk not calculated, so derivative of acceleration is 0
         // Update historic max values only if overshoot didn't change
-        const overshootChanged = this.currentParams && this.currentParams.accOvershoot !== this.previousAccOvershoot;
+        const overshootChanged = this.currentParams &&
+            this.currentParams.accOvershoot !== this.previousAccOvershoot;
         if (!overshootChanged) {
             // Calculate current max values including g(t) traces
-            const positionValues = [...profile.map(p => p.position), ...gPosition];
+            const positionValues = [...profile.map((p) => p.position), ...gPosition];
             this.historicMaxPosition = Math.max(...positionValues.map(Math.abs));
-            const velocityValues = [...profile.map(p => p.velocity), ...gVelocity];
+            const velocityValues = [...profile.map((p) => p.velocity), ...gVelocity];
             this.historicMaxVelocity = Math.max(...velocityValues.map(Math.abs));
-            const accelerationValues = [...profile.map(p => Math.abs(p.acceleration) / 1000), ...gAcceleration.map(a => Math.abs(a) / 1000)];
+            const accelerationValues = [
+                ...profile.map((p) => Math.abs(p.acceleration) / 1000),
+                ...gAcceleration.map((a) => Math.abs(a) / 1000),
+            ];
             this.historicMaxAcceleration = Math.max(...accelerationValues);
         }
         // Update previous overshoot
@@ -108,7 +117,9 @@ class MotionSimulator {
         for (let i = 0; i < profile.length; i++) {
             const point = profile[i];
             const x = (point.time / maxTime) * (width - 100) + 50;
-            const value = property === 'acceleration' ? Math.abs(point[property]) / 1000 : point[property];
+            const value = property === 'acceleration'
+                ? Math.abs(point[property]) / 1000
+                : point[property];
             const y = centerY - (value / maxValue) * (plotHeight / 2 - 20);
             if (i === 0) {
                 this.ctx.moveTo(x, y);
@@ -195,14 +206,15 @@ document.addEventListener('DOMContentLoaded', () => {
             rate: parseFloat(rateSlider.value),
             acceleration: parseFloat(accelerationSlider.value),
             accOvershoot: parseFloat(overshootSlider.value),
-            k: parseFloat(kSlider.value)
+            k: parseFloat(kSlider.value),
         };
         simulator.updateProfile(params);
     }
     function updateDisplays() {
         distanceValue.textContent = distanceSlider.value + ' mm';
         rateValue.textContent = rateSlider.value + ' mm/s';
-        accelerationValue.textContent = (parseFloat(accelerationSlider.value) / 1000).toFixed(1) + 'k mm/s²';
+        accelerationValue.textContent =
+            (parseFloat(accelerationSlider.value) / 1000).toFixed(1) + 'k mm/s²';
         overshootValue.textContent = overshootSlider.value;
         kValue.textContent = kSlider.value;
     }
@@ -219,7 +231,13 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTrajectoryDisplay();
         updateSimulator();
     });
-    [distanceSlider, rateSlider, accelerationSlider, overshootSlider, kSlider].forEach(slider => {
+    [
+        distanceSlider,
+        rateSlider,
+        accelerationSlider,
+        overshootSlider,
+        kSlider,
+    ].forEach((slider) => {
         slider.addEventListener('input', () => {
             updateDisplays();
             updateSimulator();

@@ -11,7 +11,8 @@ export class Poly6Profile {
         let nominal_speed = rate;
         // --- Trapezoid timings (unchanged) ---
         const invA = 1.0 / acceleration;
-        const ldiff = distance + 0.5 * invA * (initial_speed * initial_speed + final_speed * final_speed);
+        const ldiff = distance +
+            0.5 * invA * (initial_speed * initial_speed + final_speed * final_speed);
         let T2 = ldiff / nominal_speed - invA * nominal_speed;
         if (T2 < 0.0) {
             T2 = 0.0;
@@ -43,7 +44,7 @@ export class Poly6Profile {
             const a5_mid = this.s5pp_u(acc_c3, acc_c4, acc_c5, 0.5) / (Ts * Ts);
             const a_mid_target = accOvershoot * acceleration;
             // c chosen so that (s5''(0.5)+c5*K''(0.5))/Ts^2 == a_mid_target
-            acc_c6 = (Ts * Ts) * (a_mid_target - a5_mid) / Kpp_mid;
+            acc_c6 = (Ts * Ts * (a_mid_target - a5_mid)) / Kpp_mid;
         }
         // ---- Decel phase ----
         let dec_c3 = 0.0, dec_c4 = 0.0, dec_c5 = 0.0, dec_c6 = 0.0;
@@ -60,7 +61,7 @@ export class Poly6Profile {
             dec_c5 = 6.0 * delta_p - 3.0 * delta_v;
             const a5_mid = this.s5pp_u(dec_c3, dec_c4, dec_c5, 0.5) / (Ts * Ts);
             const a_mid_target = -accOvershoot * acceleration;
-            dec_c6 = (Ts * Ts) * (a_mid_target - a5_mid) / Kpp_mid;
+            dec_c6 = (Ts * Ts * (a_mid_target - a5_mid)) / Kpp_mid;
         }
         // Generate profile points - first pass: calculate positions
         const positions = [];
@@ -71,10 +72,11 @@ export class Poly6Profile {
             if (time < T1) {
                 // Accel phase: u = time/T1
                 const u = time / T1;
-                position = this.s5_u(0.0, initial_speed, T1, acc_c3, acc_c4, acc_c5, u) +
-                    acc_c6 * this.K_u(0.0, initial_speed, T1, u);
+                position =
+                    this.s5_u(0.0, initial_speed, T1, acc_c3, acc_c4, acc_c5, u) +
+                        acc_c6 * this.K_u(0.0, initial_speed, T1, u);
             }
-            else if (time <= (T1 + T2)) {
+            else if (time <= T1 + T2) {
                 // Coast
                 position = pos_before_coast + nominal_speed * (time - T1);
             }
@@ -82,8 +84,9 @@ export class Poly6Profile {
                 // Decel phase
                 const tau = time - (T1 + T2);
                 const u = tau / T3;
-                position = this.s5_u(pos_after_coast, nominal_speed, T3, dec_c3, dec_c4, dec_c5, u) +
-                    dec_c6 * this.K_u(pos_after_coast, nominal_speed, T3, u);
+                position =
+                    this.s5_u(pos_after_coast, nominal_speed, T3, dec_c3, dec_c4, dec_c5, u) +
+                        dec_c6 * this.K_u(pos_after_coast, nominal_speed, T3, u);
             }
             positions.push(position);
             time += dt;
@@ -103,7 +106,7 @@ export class Poly6Profile {
                 time: i * dt,
                 position: positions[i],
                 velocity: velocities[i],
-                acceleration: acceleration_val
+                acceleration: acceleration_val,
             });
         }
     }
@@ -118,7 +121,7 @@ export class Poly6Profile {
     }
     K_u(s0, v0, Ts, u) {
         const um1 = 1.0 - u;
-        return (u * u * u) * (um1 * um1 * um1);
+        return u * u * u * (um1 * um1 * um1);
     }
     getProfile() {
         return this.profile;
