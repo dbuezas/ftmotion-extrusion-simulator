@@ -325,7 +325,7 @@ export class MotionSimulator {
     this.ctx.font = '10px Arial';
     this.ctx.textAlign = 'right';
     this.ctx.fillText(
-      `Planned extrussion. Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
+      `Planned extrusion. Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
       width - 50,
       yOffset + plotHeight - 50 + 10
     );
