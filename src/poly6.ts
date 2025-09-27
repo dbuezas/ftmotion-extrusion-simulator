@@ -1,5 +1,3 @@
-const dt = 0.001; // 1ms steps
-
 export interface ProfilePoint {
   time: number;
   position: number;
@@ -14,16 +12,18 @@ export class Poly6Profile {
     distance: number,
     rate: number,
     acceleration: number,
-    accOvershoot: number
+    accOvershoot: number,
+    dt: number
   ) {
-    this.generateProfile(distance, rate, acceleration, accOvershoot);
+    this.generateProfile(distance, rate, acceleration, accOvershoot, dt);
   }
 
   private generateProfile(
     distance: number,
     rate: number,
     acceleration: number,
-    accOvershoot: number
+    accOvershoot: number,
+    dt: number
   ): void {
     // Port of Marlin's Poly6TrajectoryGenerator
     const initial_speed = 0.0;

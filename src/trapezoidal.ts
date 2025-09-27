@@ -1,5 +1,3 @@
-const dt = 0.001; // 1ms steps
-
 export interface ProfilePoint {
   time: number;
   position: number;
@@ -10,14 +8,15 @@ export interface ProfilePoint {
 export class TrapezoidalProfile {
   private profile: ProfilePoint[] = [];
 
-  constructor(distance: number, rate: number, acceleration: number) {
-    this.generateProfile(distance, rate, acceleration);
+  constructor(distance: number, rate: number, acceleration: number, dt: number) {
+    this.generateProfile(distance, rate, acceleration, dt);
   }
 
   private generateProfile(
     distance: number,
     rate: number,
-    acceleration: number
+    acceleration: number,
+    dt: number
   ): void {
     // Use the same timing calculation as Marlin 6POLY
     const initial_speed = 0.0;

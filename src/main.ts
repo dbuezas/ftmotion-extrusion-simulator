@@ -4,7 +4,6 @@ import {
 } from './trapezoidal.js';
 import { Poly6Profile, ProfilePoint as Poly6ProfilePoint } from './poly6.js';
 
-const dt = 0.001; // 1ms steps
 const layerHeight = 0.2; // mm
 const filamentDiameter = 1.75; // mm
 const filamentArea = Math.PI * Math.pow(filamentDiameter / 2, 2); // mm²
@@ -17,6 +16,7 @@ interface MotionParameters {
   accOvershoot: number; // factor
   k: number; // linear advance
   lineWidth: number; // mm
+  ftmFs: number; // Hz
 }
 
 interface ProfilePoint {
@@ -36,22 +36,25 @@ class MotionProfile {
   }
 
   private calculateProfile(): void {
-    const { trajectory, distance, rate, acceleration, accOvershoot } =
+    const { trajectory, distance, rate, acceleration, accOvershoot, ftmFs } =
       this.params;
+    const dt = 1 / ftmFs;
 
     if (trajectory === '6poly') {
       const poly6Profile = new Poly6Profile(
         distance,
         rate,
         acceleration,
-        accOvershoot
+        accOvershoot,
+        dt
       );
       this.profile = poly6Profile.getProfile();
     } else {
       const trapezoidalProfile = new TrapezoidalProfile(
         distance,
         rate,
-        acceleration
+        acceleration,
+        dt
       );
       this.profile = trapezoidalProfile.getProfile();
     }
@@ -126,6 +129,7 @@ class MotionSimulator {
 
     // Find max values for scaling
     const maxTime = Math.max(...profile.map((p) => p.time));
+    const dt = 1 / this.currentParams!.ftmFs;
 
     // Compute mm of filament per mm of travel
     const mmFilamentPerMmTravel =
@@ -134,14 +138,20 @@ class MotionSimulator {
     // Calculate extruder(t) values for each plot
     const ePosition = profile.map(
       (p, i) =>
-        (p.position + (this.k * profile[i].velocity) / dt) *
-        mmFilamentPerMmTravel
+        p.position * mmFilamentPerMmTravel +
+        (this.k * (p.position - (i == 0 ? 0 : profile[i - 1].position))) / dt
     );
-    const eVelocity = ePosition.map(
-      (p, i) => (p - (i == 0 ? 0 : ePosition[i - 1])) / dt
+    const eVelocity = profile.map(
+      (p, i) =>
+        p.velocity * mmFilamentPerMmTravel +
+        (this.k * (p.velocity - (i == 0 ? 0 : profile[i - 1].velocity))) / dt
     );
-    const eAcceleration = eVelocity.map(
-      (p, i) => (p - (i == 0 ? 0 : eVelocity[i - 1])) / dt
+    const eAcceleration = profile.map(
+      (p, i) =>
+        p.acceleration * mmFilamentPerMmTravel +
+        (this.k *
+          (p.acceleration - (i == 0 ? 0 : profile[i - 1].acceleration))) /
+          dt
     );
 
     // Update historic max values only if overshoot didn't change
@@ -372,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lineWidthSlider = document.getElementById(
     'line-width'
   ) as HTMLInputElement;
+  const ftmFsSlider = document.getElementById('ftm-fs') as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements
@@ -381,6 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const overshootValue = document.getElementById('overshoot-value')!;
   const kValue = document.getElementById('k-value')!;
   const lineWidthValue = document.getElementById('line-width-value')!;
+  const ftmFsValue = document.getElementById('ftm-fs-value')!;
 
   function updateSimulator() {
     const params: MotionParameters = {
@@ -391,6 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
       accOvershoot: parseFloat(overshootSlider.value),
       k: parseFloat(kSlider.value),
       lineWidth: parseFloat(lineWidthSlider.value),
+      ftmFs: parseFloat(ftmFsSlider.value),
     };
     simulator.updateProfile(params);
   }
@@ -403,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
     overshootValue.textContent = overshootSlider.value;
     kValue.textContent = kSlider.value;
     lineWidthValue.textContent = lineWidthSlider.value + ' mm';
+    ftmFsValue.textContent = ftmFsSlider.value + ' Hz';
   }
 
   function updateTrajectoryDisplay() {
@@ -426,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
     overshootSlider,
     kSlider,
     lineWidthSlider,
+    ftmFsSlider,
   ].forEach((slider) => {
     slider.addEventListener('input', () => {
       updateDisplays();
