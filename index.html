@@ -106,6 +106,22 @@
         </div>
 
         <div class="control-group">
+          <label for="smoothing-time">Smoothing Time</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="smoothing-time"
+              class="slider"
+              min="0"
+              max="0.01"
+              step="0.001"
+              value="0"
+            />
+            <span id="smoothing-time-value" class="value">0 s</span>
+          </div>
+        </div>
+
+        <div class="control-group">
           <label for="trajectory">Trajectory Type</label>
           <select id="trajectory" class="trajectory-select">
             <option value="6poly">6POLY</option>

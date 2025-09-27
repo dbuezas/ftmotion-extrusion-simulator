@@ -8,6 +8,40 @@ const layerHeight = 0.2; // mm
 const filamentDiameter = 1.75; // mm
 const filamentArea = Math.PI * Math.pow(filamentDiameter / 2, 2); // mm²
 
+const FTM_SMOOTHING_ORDER = 5;
+
+class AxisSmoothing {
+  alpha: number = 0;
+  delay_samples: number = 0;
+  smoothing_pass: number[] = [];
+
+  constructor(order: number) {
+    this.smoothing_pass = new Array(order).fill(0);
+  }
+
+  set_smoothing_time(s_time: number, ts: number, fs: number, order: number) {
+    if (s_time > 0.001) {
+      this.alpha = 1.0 - Math.exp(-ts * order / s_time);
+      this.delay_samples = s_time * fs;
+    } else {
+      this.alpha = 0;
+      this.delay_samples = 0;
+    }
+  }
+}
+
+function smoothen(value: number, smoothing: AxisSmoothing): number {
+  if (smoothing.alpha > 0) {
+    let smooth_val = value;
+    for (let i = 0; i < smoothing.smoothing_pass.length; ++i) {
+      smoothing.smoothing_pass[i] += (smooth_val - smoothing.smoothing_pass[i]) * smoothing.alpha;
+      smooth_val = smoothing.smoothing_pass[i];
+    }
+    return smooth_val;
+  }
+  return value;
+}
+
 interface MotionParameters {
   trajectory: 'trapezoidal' | '6poly';
   distance: number; // mm
@@ -17,6 +51,7 @@ interface MotionParameters {
   k: number; // linear advance
   lineWidth: number; // mm
   ftmFs: number; // Hz
+  smoothingTime: number; // s
 }
 
 interface ProfilePoint {
@@ -36,7 +71,7 @@ class MotionProfile {
   }
 
   private calculateProfile(): void {
-    const { trajectory, distance, rate, acceleration, accOvershoot, ftmFs } =
+    const { trajectory, distance, rate, acceleration, accOvershoot, ftmFs, smoothingTime } =
       this.params;
     const dt = 1 / ftmFs;
 
@@ -57,6 +92,30 @@ class MotionProfile {
         dt
       );
       this.profile = trapezoidalProfile.getProfile();
+    }
+
+    // Apply axis smoothing if smoothingTime > 0
+    if (smoothingTime > 0) {
+      const smoothing = new AxisSmoothing(FTM_SMOOTHING_ORDER);
+      smoothing.set_smoothing_time(smoothingTime, dt, ftmFs, FTM_SMOOTHING_ORDER);
+
+      for (let i = 0; i < this.profile.length; i++) {
+        this.profile[i].position = smoothen(this.profile[i].position, smoothing);
+      }
+
+      // Recalculate velocity and acceleration after smoothing position
+      for (let i = 0; i < this.profile.length; i++) {
+        if (i === 0) {
+          this.profile[i].velocity = 0;
+          this.profile[i].acceleration = 0;
+        } else if (i === this.profile.length - 1) {
+          this.profile[i].velocity = 0;
+          this.profile[i].acceleration = 0;
+        } else {
+          this.profile[i].velocity = (this.profile[i + 1].position - this.profile[i - 1].position) / (2 * dt);
+          this.profile[i].acceleration = (this.profile[i + 1].velocity - this.profile[i - 1].velocity) / (2 * dt);
+        }
+      }
     }
   }
 
@@ -383,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'line-width'
   ) as HTMLInputElement;
   const ftmFsSlider = document.getElementById('ftm-fs') as HTMLInputElement;
+  const smoothingTimeSlider = document.getElementById('smoothing-time') as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value display elements
@@ -393,6 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const kValue = document.getElementById('k-value')!;
   const lineWidthValue = document.getElementById('line-width-value')!;
   const ftmFsValue = document.getElementById('ftm-fs-value')!;
+  const smoothingTimeValue = document.getElementById('smoothing-time-value')!;
 
   function updateSimulator() {
     const params: MotionParameters = {
@@ -404,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
       k: parseFloat(kSlider.value),
       lineWidth: parseFloat(lineWidthSlider.value),
       ftmFs: parseFloat(ftmFsSlider.value),
+      smoothingTime: parseFloat(smoothingTimeSlider.value),
     };
     simulator.updateProfile(params);
   }
@@ -417,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     kValue.textContent = kSlider.value;
     lineWidthValue.textContent = lineWidthSlider.value + ' mm';
     ftmFsValue.textContent = ftmFsSlider.value + ' Hz';
+    smoothingTimeValue.textContent = smoothingTimeSlider.value + ' s';
   }
 
   function updateTrajectoryDisplay() {
@@ -441,6 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
     kSlider,
     lineWidthSlider,
     ftmFsSlider,
+    smoothingTimeSlider,
   ].forEach((slider) => {
     slider.addEventListener('input', () => {
       updateDisplays();
