@@ -39,7 +39,24 @@ h1 {
 .slider-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.input-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.unit {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  user-select: none;
 }
 
 .slider {
@@ -51,6 +68,18 @@ h1 {
   text-align: right;
   font-weight: bold;
   color: #007bff;
+}
+
+input.value {
+  width: 45px;
+  text-align: right;
+  font-weight: bold;
+  color: #007bff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 2px 20px 2px 4px;
+  font-size: 12px;
+  position: relative;
 }
 
 input[type='range'] {
@@ -158,6 +187,23 @@ input[type='range']::-moz-range-thumb {
   .value {
     min-width: 60px;
     font-size: 14px;
+  }
+
+  input.value {
+    width: 40px;
+    font-size: 11px;
+    padding: 2px 18px 2px 4px;
+    position: relative;
+  }
+
+  .unit {
+    font-size: 10px;
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    user-select: none;
   }
 
   .plots {

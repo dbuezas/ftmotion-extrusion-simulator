@@ -17,7 +17,10 @@
           <label for="distance">Distance</label>
           <div class="slider-container">
             <input type="range" id="distance" class="slider" min="0" max="100" step="1" value="15" />
-            <span id="distance-value" class="value">50 mm</span>
+            <div class="input-wrapper">
+              <input type="number" id="distance-value" class="value" value="50" step="1" />
+              <span class="unit">mm</span>
+            </div>
           </div>
         </div>
 
@@ -25,7 +28,10 @@
           <label for="rate">Rate (Velocity)</label>
           <div class="slider-container">
             <input type="range" id="rate" class="slider" min="1" max="500" step="1" value="100" />
-            <span id="rate-value" class="value">100 mm/s</span>
+            <div class="input-wrapper">
+              <input type="number" id="rate-value" class="value" value="100" step="1" />
+              <span class="unit">mm/s</span>
+            </div>
           </div>
         </div>
 
@@ -33,7 +39,10 @@
           <label for="acceleration">Acceleration</label>
           <div class="slider-container">
             <input type="range" id="acceleration" class="slider" min="1" max="10000" step="10" value="1000" />
-            <span id="acceleration-value" class="value">1000 mm/s²</span>
+            <div class="input-wrapper">
+              <input type="number" id="acceleration-value" class="value" value="1000" step="10" />
+              <span class="unit">mm/s²</span>
+            </div>
           </div>
         </div>
 
@@ -41,7 +50,10 @@
           <label for="line-width">Line Width</label>
           <div class="slider-container">
             <input type="range" id="line-width" class="slider" min="0.2" max="0.6" step="0.01" value="0.4" />
-            <span id="line-width-value" class="value">0.4 mm</span>
+            <div class="input-wrapper">
+              <input type="number" id="line-width-value" class="value" value="0.4" step="0.01" />
+              <span class="unit">mm</span>
+            </div>
           </div>
         </div>
 
@@ -49,7 +61,10 @@
           <label for="layer-height">Line Height</label>
           <div class="slider-container">
             <input type="range" id="layer-height" class="slider" min="0.1" max="1.0" step="0.1" value="0.2" />
-            <span id="layer-height-value" class="value">0.2 mm</span>
+            <div class="input-wrapper">
+              <input type="number" id="layer-height-value" class="value" value="0.2" step="0.1" />
+              <span class="unit">mm</span>
+            </div>
           </div>
         </div>
 
@@ -57,7 +72,7 @@
           <label for="k-factor">Linear Advance K</label>
           <div class="slider-container">
             <input type="range" id="k-factor" class="slider" min="0" max="1" step="0.01" value="0.04" />
-            <span id="k-value" class="value">0.5</span>
+            <input type="number" id="k-value" class="value" value="0.5" step="0.01" />
           </div>
         </div>
 
@@ -73,7 +88,7 @@
           <label for="acc-overshoot">Acceleration Overshoot</label>
           <div class="slider-container">
             <input type="range" id="acc-overshoot" class="slider" min="1.25" max="1.875" step="0.001" value="1.5" />
-            <span id="overshoot-value" class="value">1.5</span>
+            <input type="number" id="overshoot-value" class="value" value="1.5" step="0.001" />
           </div>
         </div>
 
@@ -81,7 +96,10 @@
           <label for="smoothing-time">Smoothing Time</label>
           <div class="slider-container">
             <input type="range" id="smoothing-time" class="slider" min="0" max="0.1" step="0.001" value="0" />
-            <span id="smoothing-time-value" class="value">0 s</span>
+            <div class="input-wrapper">
+              <input type="number" id="smoothing-time-value" class="value" value="0" step="0.001" />
+              <span class="unit">s</span>
+            </div>
           </div>
         </div>
 
@@ -89,7 +107,10 @@
           <label for="ftm-fs">FTM_TS</label>
           <div class="slider-container">
             <input type="range" id="ftm-fs" class="slider" min="500" max="3000" step="100" value="1000" />
-            <span id="ftm-fs-value" class="value">1000 Hz</span>
+            <div class="input-wrapper">
+              <input type="number" id="ftm-fs-value" class="value" value="1000" step="100" />
+              <span class="unit">Hz</span>
+            </div>
           </div>
         </div>
       </div>
