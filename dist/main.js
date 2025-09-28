@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ftmFsSlider = document.getElementById('ftm-fs');
     const smoothingTimeSlider = document.getElementById('smoothing-time');
     const overshootGroup = document.getElementById('overshoot-group');
-    // Get value display elements
+    // Get value input elements
     const distanceValue = document.getElementById('distance-value');
     const rateValue = document.getElementById('rate-value');
     const accelerationValue = document.getElementById('acceleration-value');
@@ -50,15 +50,15 @@ document.addEventListener('DOMContentLoaded', () => {
         simulator.updateScaling();
     }
     function updateDisplays() {
-        distanceValue.textContent = distanceSlider.value + ' mm';
-        rateValue.textContent = rateSlider.value + ' mm/s';
-        accelerationValue.textContent = parseFloat(accelerationSlider.value) + ' mm/s²';
-        overshootValue.textContent = overshootSlider.value + 'x';
-        kValue.textContent = kSlider.value;
-        lineWidthValue.textContent = lineWidthSlider.value + ' mm';
-        layerHeightValue.textContent = layerHeightSlider.value + ' mm';
-        ftmFsValue.textContent = ftmFsSlider.value + ' Hz';
-        smoothingTimeValue.textContent = smoothingTimeSlider.value + ' s';
+        distanceValue.value = distanceSlider.value;
+        rateValue.value = rateSlider.value;
+        accelerationValue.value = accelerationSlider.value;
+        overshootValue.value = overshootSlider.value;
+        kValue.value = kSlider.value;
+        lineWidthValue.value = lineWidthSlider.value;
+        layerHeightValue.value = layerHeightSlider.value;
+        ftmFsValue.value = ftmFsSlider.value;
+        smoothingTimeValue.value = smoothingTimeSlider.value;
     }
     function updateTrajectoryDisplay() {
         if (trajectorySelect.value === '6poly') {
@@ -90,6 +90,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         slider.addEventListener('change', () => {
             updateScaling();
+        });
+    });
+    // Add event listeners for input fields
+    [
+        { input: distanceValue, slider: distanceSlider },
+        { input: rateValue, slider: rateSlider },
+        { input: accelerationValue, slider: accelerationSlider },
+        { input: overshootValue, slider: overshootSlider },
+        { input: kValue, slider: kSlider },
+        { input: lineWidthValue, slider: lineWidthSlider },
+        { input: layerHeightValue, slider: layerHeightSlider },
+        { input: ftmFsValue, slider: ftmFsSlider },
+        { input: smoothingTimeValue, slider: smoothingTimeSlider },
+    ].forEach(({ input, slider }) => {
+        input.addEventListener('input', () => {
+            // Update slider value if input is valid
+            const value = parseFloat(input.value);
+            if (!isNaN(value) && value >= parseFloat(slider.min) && value <= parseFloat(slider.max)) {
+                slider.value = input.value;
+                updateProfileOnly();
+            }
+        });
+        input.addEventListener('change', () => {
+            // Validate and clamp the value
+            const value = parseFloat(input.value);
+            if (!isNaN(value)) {
+                const clampedValue = Math.min(Math.max(value, parseFloat(slider.min)), parseFloat(slider.max));
+                input.value = clampedValue.toString();
+                slider.value = clampedValue.toString();
+                updateScaling();
+            }
         });
     });
     // Initial setup
