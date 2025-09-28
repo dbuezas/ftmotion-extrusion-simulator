@@ -145,7 +145,7 @@ export class MotionSimulator {
         const ePosition = profile.pos.map((p, i) => p + this.k * profile.vel[i]);
         const eVelocity = derivate(ePosition, dt);
         const eAcceleration = derivate(eVelocity, dt);
-        const plotHeight = (height - 40) / 3;
+        const plotHeight = height / 3;
         // Draw position plot (top third) with both traces
         this.drawPlotWithE(profile, 'pos', ePosition, maxTime, this.minPosition, this.maxPosition, 0, plotHeight, 'blue', 'purple', 'Position (mm)');
         // Draw velocity plot (middle third) with both traces
