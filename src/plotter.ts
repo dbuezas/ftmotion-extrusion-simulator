@@ -114,11 +114,11 @@ export class MotionSimulator {
 
   private animateScaling(): void {
     const elapsed = performance.now() - this.animationStartTime;
-    const duration = 250; // 250ms
+    const duration = 500;
     const progress = Math.min(elapsed / duration, 1);
 
-    // Ease function (ease-out)
-    const easeProgress = 1 - Math.pow(1 - progress, 3);
+    // Ease function (ease-in-out)
+    const easeProgress = 3 * progress * progress - 2 * progress * progress * progress;
 
     // Interpolate max and min values
     this.maxPosition = this.oldMaxPosition + (this.newMaxPosition - this.oldMaxPosition) * easeProgress;
