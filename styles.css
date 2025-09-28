@@ -63,21 +63,15 @@ h1 {
   flex: 1;
 }
 
-.value {
-  min-width: 5rem;
-  text-align: right;
-  font-weight: bold;
-  color: #007bff;
-}
-
 input.value {
+  color: #007bff;
   width: 2.8125rem;
   text-align: right;
   font-weight: bold;
   color: #007bff;
   border: 0.0625rem solid #ddd;
   border-radius: 0.25rem;
-  padding: 0.125rem 1.25rem 0.125rem 0.25rem;
+  padding-right: 2.5rem;
   font-size: 0.75rem;
   position: relative;
 }
@@ -124,7 +118,7 @@ input[type='range']::-moz-range-thumb {
 }
 
 .plots {
-  /* flex: 1; */
+  flex: 1;
   background: white;
   height: 40rem;
   padding: 1.25rem;
@@ -159,12 +153,7 @@ input[type='range']::-moz-range-thumb {
 }
 
 /* Mobile styles */
-@media (max-height: 48rem) {
-  input.value {
-    padding: 0.125rem 2rem 0.125rem 0.25rem;
-  }
-}
-@media (max-width: 48rem) {
+@media (max-width: 768px) {
   body {
     padding: 0.625rem;
     max-width: none;
@@ -174,7 +163,6 @@ input[type='range']::-moz-range-thumb {
 
   .container {
     flex-direction: column;
-    gap: 0.3125rem;
   }
 
   .controls {
@@ -194,7 +182,7 @@ input[type='range']::-moz-range-thumb {
     font-size: 0.875rem;
   }
 
-  input.value {
+  input3.value {
     width: 2.5rem;
     font-size: 0.6875rem;
     padding: 0.125rem 2rem 0.125rem 0.25rem;
@@ -212,7 +200,8 @@ input[type='range']::-moz-range-thumb {
   }
 
   .plots {
-    height: 60vh;
+    height: 600px;
+    flex: none;
     padding: 0.625rem;
     width: 100%;
     box-sizing: border-box;
