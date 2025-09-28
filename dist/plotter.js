@@ -32,9 +32,9 @@ export class MotionSimulator {
         window.addEventListener('resize', () => this.resizeCanvas());
     }
     resizeCanvas() {
-        this.canvas.style.display = 'none';
+        // this.canvas.style.display = 'none';
         const rect = this.canvas.parentElement.getBoundingClientRect();
-        this.canvas.style.display = '';
+        // this.canvas.style.display = '';
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
         this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
