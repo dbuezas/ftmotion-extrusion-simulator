@@ -182,13 +182,6 @@ input[type='range']::-moz-range-thumb {
     font-size: 0.875rem;
   }
 
-  input3.value {
-    width: 2.5rem;
-    font-size: 0.6875rem;
-    padding: 0.125rem 2rem 0.125rem 0.25rem;
-    position: relative;
-  }
-
   .unit {
     font-size: 0.625rem;
     position: absolute;
