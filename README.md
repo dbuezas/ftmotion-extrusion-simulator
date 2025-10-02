@@ -1,3 +1,7 @@
+Use online https://dbuezas.github.io/ftmotion-extrusion-simulator/
+
+<img width="1149" height="855" alt="image" src="https://github.com/user-attachments/assets/1de7839f-13cc-4d17-a116-e8af4b86f994" />
+
 # FTMotion Extrusion Profile Simulator
 
 A web-based simulator for visualizing extrusion motion profiles in Marlin with FTMotion enalbled. This tool helps understand how different motion parameters affect the position, velocity, and acceleration of the extruder, including the effects of linear advance (K-factor), particularly those of smoothing time, poly6 and acceleration overshoot.
@@ -9,10 +13,6 @@ A web-based simulator for visualizing extrusion motion profiles in Marlin with F
 * [x] https://github.com/MarlinFirmware/Marlin/pull/28058
 * [x] https://github.com/MarlinFirmware/Marlin/pull/28078
 * [x] https://github.com/MarlinFirmware/Marlin/pull/28082
-
-See the webapp: https://dbuezas.github.io/ftmotion-extrusion-simulator/
-<img width="1149" height="855" alt="image" src="https://github.com/user-attachments/assets/1de7839f-13cc-4d17-a116-e8af4b86f994" />
-
 
 ## Features
 
