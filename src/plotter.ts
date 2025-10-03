@@ -98,23 +98,19 @@ export class MotionSimulator {
   }
 
   private calculateAllTraces(posRaw: number[], dt: number) {
-    // Base position data
-    const posSmoothed = smoothen(
-      posRaw,
+    // Calculate derivatives
+    const velRaw = derivate(posRaw, dt);
+    const accRaw = derivate(velRaw, dt);
+
+    // Calculate extruder(t) values - first apply formula to posRaw, then smooth
+    const posWithAdvanceRaw = posRaw.map((p, i) => p + this.currentParams!.k * velRaw[i]);
+    const posWithAdvance = smoothen(
+      posWithAdvanceRaw,
       this.currentParams!.smoothingTime,
       dt,
       this.currentParams!.ftmFs,
       this.currentParams!.ftmSmoothingOrder
     );
-
-    // Calculate derivatives
-    const velRaw = derivate(posRaw, dt);
-    const velSmoothed = derivate(posSmoothed, dt);
-    const accRaw = derivate(velRaw, dt);
-    const accSmoothed = derivate(velSmoothed, dt);
-
-    // Calculate extruder(t) values
-    const posWithAdvance = posSmoothed.map((p, i) => p + this.currentParams!.k * velSmoothed[i]);
     const velWithAdvance = derivate(posWithAdvance, dt);
     const accWithAdvance = derivate(velWithAdvance, dt);
 
@@ -126,10 +122,10 @@ export class MotionSimulator {
     const accEffective = this.simulateNozzle(accWithAdvance, alpha);
 
     return {
-      position: [posRaw, posSmoothed, posWithAdvance, posEffective],
-      velocity: [velRaw, velSmoothed, velWithAdvance, velEffective],
-      acceleration: [accRaw, accSmoothed, accWithAdvance, accEffective],
-      labels: ['Planned', 'Smoothed', 'With advance', 'Effective'],
+      position: [posRaw, posWithAdvance, posEffective],
+      velocity: [velRaw, velWithAdvance, velEffective],
+      acceleration: [accRaw, accWithAdvance, accEffective],
+      labels: ['Planned', 'With advance', 'Effective'],
     };
   }
 
@@ -198,9 +194,9 @@ export class MotionSimulator {
 
     // Define plot configurations
     const plotConfigs = [
-      { traces: traces.position, colors: ['brown', 'blue', 'purple', 'orange'], label: 'Position (mm)' },
-      { traces: traces.velocity, colors: ['brown', 'green', 'purple', 'orange'], label: 'Velocity (mm/s)' },
-      { traces: traces.acceleration, colors: ['brown', 'red', 'purple', 'orange'], label: 'Acceleration (mm/s²)' },
+      { traces: traces.position, colors: ['green', 'blue', 'red'], label: 'Position (mm)' },
+      { traces: traces.velocity, colors: ['green', 'blue', 'red'], label: 'Velocity (mm/s)' },
+      { traces: traces.acceleration, colors: ['green', 'blue', 'red'], label: 'Acceleration (mm/s²)' },
     ];
 
     // Draw all plots using loops

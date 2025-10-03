@@ -41,7 +41,7 @@ export function calculateMotionProfile(params: MotionParameters): number[] {
   const mmFilamentPerMmTravel = (params.lineWidth * layerHeight) / filamentArea;
 
   posProfile = posProfile.map((p) => p * mmFilamentPerMmTravel);
-  const padLength = Math.floor(posProfile.length / 10);
+  const padLength = Math.floor(posProfile.length / 5);
 
   const paddedProfile = [
     ...Array(padLength).fill(posProfile.at(0)),
