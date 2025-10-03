@@ -17,6 +17,7 @@ export interface MotionParameters {
   layerHeight: number; // mm
   ftmFs: number; // Hz
   smoothingTime: number; // s
+  ftmSmoothingOrder: number; // smoothing filter order
 }
 
 export type Profile = { pos: number[]; vel: number[]; acc: number[] };
@@ -49,7 +50,17 @@ function smoothen(positions: number[], s_time: number, ts: number, fs: number, o
 }
 
 export function calculateMotionProfile(params: MotionParameters): Profile {
-  const { trajectory, distance, rate, acceleration, accOvershoot, layerHeight, ftmFs, smoothingTime } = params;
+  const {
+    trajectory,
+    distance,
+    rate,
+    acceleration,
+    accOvershoot,
+    layerHeight,
+    ftmFs,
+    smoothingTime,
+    ftmSmoothingOrder,
+  } = params;
   const dt = 1 / ftmFs;
 
   let posProfile: number[];
@@ -62,7 +73,7 @@ export function calculateMotionProfile(params: MotionParameters): Profile {
 
   posProfile = posProfile.map((p) => p * mmFilamentPerMmTravel);
 
-  const pos = smoothen(posProfile, smoothingTime, dt, ftmFs, FTM_SMOOTHING_ORDER);
+  const pos = smoothen(posProfile, smoothingTime, dt, ftmFs, ftmSmoothingOrder);
   const vel = derivate(pos, dt);
   const acc = derivate(vel, dt);
   return { pos, vel, acc };

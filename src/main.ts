@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const layerHeightSlider = document.getElementById('layer-height') as HTMLInputElement;
   const ftmFsSlider = document.getElementById('ftm-fs') as HTMLInputElement;
   const smoothingTimeSlider = document.getElementById('smoothing-time') as HTMLInputElement;
+  const ftmSmoothingOrderSlider = document.getElementById('ftm-smoothing-order') as HTMLInputElement;
   const overshootGroup = document.getElementById('overshoot-group')!;
 
   // Get value input elements
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const layerHeightValue = document.getElementById('layer-height-value') as HTMLInputElement;
   const ftmFsValue = document.getElementById('ftm-fs-value') as HTMLInputElement;
   const smoothingTimeValue = document.getElementById('smoothing-time-value') as HTMLInputElement;
+  const ftmSmoothingOrderValue = document.getElementById('ftm-smoothing-order-value') as HTMLInputElement;
 
   function getParams(): MotionParameters {
     return {
@@ -41,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
       layerHeight: parseFloat(layerHeightSlider.value),
       ftmFs: parseFloat(ftmFsSlider.value),
       smoothingTime: parseFloat(smoothingTimeSlider.value),
+      ftmSmoothingOrder: parseFloat(ftmSmoothingOrderSlider.value),
     };
   }
 
@@ -68,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     layerHeightValue.value = layerHeightSlider.value;
     ftmFsValue.value = ftmFsSlider.value;
     smoothingTimeValue.value = smoothingTimeSlider.value;
+    ftmSmoothingOrderValue.value = ftmSmoothingOrderSlider.value;
   }
 
   function updateTrajectoryDisplay() {
@@ -94,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     layerHeightSlider,
     ftmFsSlider,
     smoothingTimeSlider,
+    ftmSmoothingOrderSlider,
   ].forEach((slider) => {
     slider.addEventListener('input', () => {
       updateDisplays();
@@ -115,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     { input: layerHeightValue, slider: layerHeightSlider },
     { input: ftmFsValue, slider: ftmFsSlider },
     { input: smoothingTimeValue, slider: smoothingTimeSlider },
+    { input: ftmSmoothingOrderValue, slider: ftmSmoothingOrderSlider },
   ].forEach(({ input, slider }) => {
     input.addEventListener('input', () => {
       // Update slider value if input is valid
