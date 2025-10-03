@@ -104,15 +104,18 @@ export class MotionSimulator {
 
     // Calculate extruder(t) values - first apply formula to posRaw, then smooth
     const posWithAdvanceRaw = posRaw.map((p, i) => p + this.currentParams!.k * velRaw[i]);
-    const posWithAdvance = smoothen(
+    let posWithAdvance = smoothen(
       posWithAdvanceRaw,
       this.currentParams!.smoothingTime,
       dt,
       this.currentParams!.ftmFs,
       this.currentParams!.ftmSmoothingOrder
     );
-    const velWithAdvance = derivate(posWithAdvance, dt);
-    const accWithAdvance = derivate(velWithAdvance, dt);
+    let velWithAdvance = derivate(posWithAdvance, dt);
+    let accWithAdvance = derivate(velWithAdvance, dt);
+    posWithAdvance = posWithAdvance.slice(2);
+    velWithAdvance = velWithAdvance.slice(2);
+    accWithAdvance = accWithAdvance.slice(2);
 
     // Calculate effective values using exponential smoothing with tau = k
     const tau = this.currentParams!.k;
