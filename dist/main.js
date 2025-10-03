@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const layerHeightSlider = document.getElementById('layer-height');
     const ftmFsSlider = document.getElementById('ftm-fs');
     const smoothingTimeSlider = document.getElementById('smoothing-time');
+    const ftmSmoothingOrderSlider = document.getElementById('ftm-smoothing-order');
     const overshootGroup = document.getElementById('overshoot-group');
     // Get value input elements
     const distanceValue = document.getElementById('distance-value');
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const layerHeightValue = document.getElementById('layer-height-value');
     const ftmFsValue = document.getElementById('ftm-fs-value');
     const smoothingTimeValue = document.getElementById('smoothing-time-value');
+    const ftmSmoothingOrderValue = document.getElementById('ftm-smoothing-order-value');
     function getParams() {
         return {
             trajectory: trajectorySelect.value,
@@ -36,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
             layerHeight: parseFloat(layerHeightSlider.value),
             ftmFs: parseFloat(ftmFsSlider.value),
             smoothingTime: parseFloat(smoothingTimeSlider.value),
+            ftmSmoothingOrder: parseFloat(ftmSmoothingOrderSlider.value),
         };
     }
     function updateSimulator() {
@@ -45,9 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateProfileOnly() {
         const params = getParams();
         simulator.updateProfileOnly(params);
-    }
-    function updateScaling() {
-        simulator.updateScaling();
     }
     function updateDisplays() {
         distanceValue.value = distanceSlider.value;
@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         layerHeightValue.value = layerHeightSlider.value;
         ftmFsValue.value = ftmFsSlider.value;
         smoothingTimeValue.value = smoothingTimeSlider.value;
+        ftmSmoothingOrderValue.value = ftmSmoothingOrderSlider.value;
     }
     function updateTrajectoryDisplay() {
         if (trajectorySelect.value === '6poly') {
@@ -83,13 +84,14 @@ document.addEventListener('DOMContentLoaded', () => {
         layerHeightSlider,
         ftmFsSlider,
         smoothingTimeSlider,
+        ftmSmoothingOrderSlider,
     ].forEach((slider) => {
         slider.addEventListener('input', () => {
             updateDisplays();
             updateProfileOnly();
         });
         slider.addEventListener('change', () => {
-            updateScaling();
+            updateSimulator();
         });
     });
     // Add event listeners for input fields
@@ -103,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { input: layerHeightValue, slider: layerHeightSlider },
         { input: ftmFsValue, slider: ftmFsSlider },
         { input: smoothingTimeValue, slider: smoothingTimeSlider },
+        { input: ftmSmoothingOrderValue, slider: ftmSmoothingOrderSlider },
     ].forEach(({ input, slider }) => {
         input.addEventListener('input', () => {
             // Update slider value if input is valid
@@ -119,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const clampedValue = Math.min(Math.max(value, parseFloat(slider.min)), parseFloat(slider.max));
                 input.value = clampedValue.toString();
                 slider.value = clampedValue.toString();
-                updateScaling();
+                updateSimulator();
             }
         });
     });
