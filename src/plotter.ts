@@ -1,33 +1,31 @@
-import { MotionParameters, Profile, calculateMotionProfile } from './profile.js';
+import { MotionParameters, calculateMotionProfile } from './profile.js';
+import { smoothen } from './smoothen.js';
 
 const derivate = (arr: number[], dt: number) => arr.map((p, i) => (i === 0 ? 0 : (p - arr[i - 1]) / dt));
 
 export class MotionSimulator {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private profile: Profile | null = null;
+  private profile: number[] | null = null;
   private k: number = 0.5;
   private currentParams: MotionParameters | null = null;
-  private maxPosition: number = 0;
-  private maxVelocity: number = 0;
-  private maxAcceleration: number = 0;
-  private minPosition: number = 0;
-  private minVelocity: number = 0;
-  private minAcceleration: number = 0;
+
+  // Scaling state as array of derivative levels (0=position, 1=velocity, 2=acceleration)
+  private scalingState: Array<{
+    max: number;
+    min: number;
+    oldMax: number;
+    oldMin: number;
+    newMax: number;
+    newMin: number;
+  }> = [
+    { max: 0, min: 0, oldMax: 0, oldMin: 0, newMax: 0, newMin: 0 }, // position
+    { max: 0, min: 0, oldMax: 0, oldMin: 0, newMax: 0, newMin: 0 }, // velocity
+    { max: 0, min: 0, oldMax: 0, oldMin: 0, newMax: 0, newMin: 0 }, // acceleration
+  ];
+
   private animating: boolean = false;
   private animationStartTime: number = 0;
-  private oldMaxPosition: number = 0;
-  private oldMaxVelocity: number = 0;
-  private oldMaxAcceleration: number = 0;
-  private oldMinPosition: number = 0;
-  private oldMinVelocity: number = 0;
-  private oldMinAcceleration: number = 0;
-  private newMaxPosition: number = 0;
-  private newMaxVelocity: number = 0;
-  private newMaxAcceleration: number = 0;
-  private newMinPosition: number = 0;
-  private newMinVelocity: number = 0;
-  private newMinAcceleration: number = 0;
   private firstUpdate: boolean = true;
 
   constructor(canvasId: string) {
@@ -63,53 +61,76 @@ export class MotionSimulator {
     this.draw();
   }
 
-  updateScaling(): void {
+  private updateScaling(): void {
     if (!this.profile || !this.currentParams || this.animating) return;
 
-    // Store old values
-    this.oldMaxPosition = this.maxPosition;
-    this.oldMaxVelocity = this.maxVelocity;
-    this.oldMaxAcceleration = this.maxAcceleration;
-    this.oldMinPosition = this.minPosition;
-    this.oldMinVelocity = this.minVelocity;
-    this.oldMinAcceleration = this.minAcceleration;
-
-    const profile = this.profile;
     const dt = 1 / this.currentParams.ftmFs;
 
-    // Calculate extruder(t) values for each plot
-    const ePosition = profile.pos.map((p, i) => p + this.k * profile.vel[i]);
-    const eVelocity = derivate(ePosition, dt);
-    const eAcceleration = derivate(eVelocity, dt);
+    // Calculate all traces using array-based approach
+    const traces = this.calculateAllTraces(this.profile, dt);
 
-    // Calculate new min and max values including extruder(t) traces
-    const positionValues = [...profile.pos, ...ePosition];
-    this.newMaxPosition = Math.max(...positionValues);
-    this.newMinPosition = Math.min(...positionValues);
+    // Process each derivative level (0=position, 1=velocity, 2=acceleration)
+    for (let level = 0; level < 3; level++) {
+      // Store old values for animation
+      this.scalingState[level].oldMax = this.scalingState[level].max;
+      this.scalingState[level].oldMin = this.scalingState[level].min;
 
-    const velocityValues = [...profile.vel, ...eVelocity];
-    this.newMaxVelocity = Math.max(...velocityValues);
-    this.newMinVelocity = Math.min(...velocityValues);
-
-    const accelerationValues = [...profile.acc, ...eAcceleration];
-    this.newMaxAcceleration = Math.max(...accelerationValues);
-    this.newMinAcceleration = Math.min(...accelerationValues);
+      // Calculate new values
+      const levelKeys = ['position', 'velocity', 'acceleration'] as const;
+      const allValues = traces[levelKeys[level]].flat();
+      this.scalingState[level].newMax = Math.max(...allValues);
+      this.scalingState[level].newMin = Math.min(...allValues);
+    }
 
     if (this.firstUpdate) {
       this.firstUpdate = false;
       // Set values directly without animation
-      this.maxPosition = this.newMaxPosition;
-      this.maxVelocity = this.newMaxVelocity;
-      this.maxAcceleration = this.newMaxAcceleration;
-      this.minPosition = this.newMinPosition;
-      this.minVelocity = this.newMinVelocity;
-      this.minAcceleration = this.newMinAcceleration;
+      for (let level = 0; level < 3; level++) {
+        this.scalingState[level].max = this.scalingState[level].newMax;
+        this.scalingState[level].min = this.scalingState[level].newMin;
+      }
     } else {
       // Start animation
       this.animating = true;
       this.animationStartTime = performance.now();
       this.animateScaling();
     }
+  }
+
+  private calculateAllTraces(posRaw: number[], dt: number) {
+    // Base position data
+    const posSmoothed = smoothen(
+      posRaw,
+      this.currentParams!.smoothingTime,
+      dt,
+      this.currentParams!.ftmFs,
+      this.currentParams!.ftmSmoothingOrder
+    );
+
+    // Calculate derivatives
+    const velRaw = derivate(posRaw, dt);
+    const velSmoothed = derivate(posSmoothed, dt);
+    const accRaw = derivate(velRaw, dt);
+    const accSmoothed = derivate(velSmoothed, dt);
+
+    // Calculate extruder(t) values
+    const posWithAdvance = posSmoothed.map((p, i) => p + this.currentParams!.k * velSmoothed[i]);
+    const velWithAdvance = derivate(posWithAdvance, dt);
+    const accWithAdvance = derivate(velWithAdvance, dt);
+
+    // Calculate effective values using exponential smoothing with tau = k
+    const tau = this.currentParams!.k;
+    const alpha = 1 - Math.exp(-dt / tau);
+    const posEffective = this.simulateNozzle(posWithAdvance, alpha);
+    const velEffective = this.simulateNozzle(velWithAdvance, alpha);
+    const accEffective = this.simulateNozzle(accWithAdvance, alpha);
+
+    return {
+      position: [posRaw, posSmoothed, posWithAdvance, posEffective],
+      velocity: [velRaw, velSmoothed, velWithAdvance, velEffective],
+      acceleration: [accRaw, accSmoothed, accWithAdvance, accEffective],
+      labels: ['Planned', 'Smoothed', 'With advance', 'Effective'],
+    };
   }
 
   private animateScaling(): void {
@@ -120,13 +141,15 @@ export class MotionSimulator {
     // Ease function (ease-in-out)
     const easeProgress = 3 * progress * progress - 2 * progress * progress * progress;
 
-    // Interpolate max and min values
-    this.maxPosition = this.oldMaxPosition + (this.newMaxPosition - this.oldMaxPosition) * easeProgress;
-    this.maxVelocity = this.oldMaxVelocity + (this.newMaxVelocity - this.oldMaxVelocity) * easeProgress;
-    this.maxAcceleration = this.oldMaxAcceleration + (this.newMaxAcceleration - this.oldMaxAcceleration) * easeProgress;
-    this.minPosition = this.oldMinPosition + (this.newMinPosition - this.oldMinPosition) * easeProgress;
-    this.minVelocity = this.oldMinVelocity + (this.newMinVelocity - this.oldMinVelocity) * easeProgress;
-    this.minAcceleration = this.oldMinAcceleration + (this.newMinAcceleration - this.oldMinAcceleration) * easeProgress;
+    // Interpolate max and min values for each derivative level
+    for (let level = 0; level < 3; level++) {
+      this.scalingState[level].max =
+        this.scalingState[level].oldMax +
+        (this.scalingState[level].newMax - this.scalingState[level].oldMax) * easeProgress;
+      this.scalingState[level].min =
+        this.scalingState[level].oldMin +
+        (this.scalingState[level].newMin - this.scalingState[level].oldMin) * easeProgress;
+    }
 
     // Redraw with interpolated values
     this.draw();
@@ -136,12 +159,10 @@ export class MotionSimulator {
     } else {
       this.animating = false;
       // Ensure final values are set exactly
-      this.maxPosition = this.newMaxPosition;
-      this.maxVelocity = this.newMaxVelocity;
-      this.maxAcceleration = this.newMaxAcceleration;
-      this.minPosition = this.newMinPosition;
-      this.minVelocity = this.newMinVelocity;
-      this.minAcceleration = this.newMinAcceleration;
+      for (let level = 0; level < 3; level++) {
+        this.scalingState[level].max = this.scalingState[level].newMax;
+        this.scalingState[level].min = this.scalingState[level].newMin;
+      }
       this.draw();
     }
   }
@@ -150,132 +171,79 @@ export class MotionSimulator {
     this.draw();
   }
 
+  private simulateNozzle(values: number[], alpha: number): number[] {
+    if (values.length === 0) return [];
+    if (alpha <= 0) return [...values];
+
+    const smoothed = [values[0]]; // Start with the first value
+
+    for (let i = 1; i < values.length; i++) {
+      smoothed[i] = alpha * values[i] + (1 - alpha) * smoothed[i - 1];
+    }
+
+    return smoothed;
+  }
+
   private draw(): void {
     if (!this.profile || !this.currentParams) return;
-
-    const profile = this.profile;
-    if (profile.pos.length === 0) return;
 
     this.ctx.clearRect(0, 0, this.canvas.width / window.devicePixelRatio, this.canvas.height / window.devicePixelRatio);
 
     const height = this.canvas.height / window.devicePixelRatio;
-
-    // Find max values for scaling
     const dt = 1 / this.currentParams.ftmFs;
-    const maxTime = profile.pos.length * dt;
-
-    // Calculate extruder(t) values for each plot
-    const ePosition = profile.pos.map((p, i) => p + this.k * profile.vel[i]);
-    const eVelocity = derivate(ePosition, dt);
-    const eAcceleration = derivate(eVelocity, dt);
-
     const plotHeight = height / 3;
-    // Draw position plot (top third) with both traces
-    this.drawPlotWithE(
-      profile,
-      'pos',
-      ePosition,
-      maxTime,
-      this.minPosition,
-      this.maxPosition,
-      0,
-      plotHeight,
-      'blue',
-      'purple',
-      'Position (mm)'
-    );
 
-    // Draw velocity plot (middle third) with both traces
-    this.drawPlotWithE(
-      profile,
-      'vel',
-      eVelocity,
-      maxTime,
-      this.minVelocity,
-      this.maxVelocity,
-      plotHeight,
-      plotHeight,
-      'green',
-      'purple',
-      'Velocity (mm/s)'
-    );
+    // Calculate all traces using array-based approach
+    const traces = this.calculateAllTraces(this.profile, dt);
 
-    // Draw acceleration plot (bottom third) with both traces
-    this.drawPlotWithE(
-      profile,
-      'acc',
-      eAcceleration,
-      maxTime,
-      this.minAcceleration,
-      this.maxAcceleration,
-      2 * plotHeight,
-      plotHeight,
-      'red',
-      'purple',
-      'Acceleration (mm/s²)'
-    );
+    // Define plot configurations
+    const plotConfigs = [
+      { traces: traces.position, colors: ['brown', 'blue', 'purple', 'orange'], label: 'Position (mm)' },
+      { traces: traces.velocity, colors: ['brown', 'green', 'purple', 'orange'], label: 'Velocity (mm/s)' },
+      { traces: traces.acceleration, colors: ['brown', 'red', 'purple', 'orange'], label: 'Acceleration (mm/s²)' },
+    ];
+
+    // Draw all plots using loops
+    plotConfigs.forEach((config, plotIndex) => {
+      // Draw axes for this plot (only once per plot)
+      this.drawAxes(
+        this.scalingState[plotIndex].min,
+        this.scalingState[plotIndex].max,
+        plotIndex * plotHeight,
+        plotHeight,
+        config.label
+      );
+
+      // Draw all traces and their legends for this plot
+      config.traces.forEach((trace, traceIndex) => {
+        this.drawTrace(
+          trace,
+          this.scalingState[plotIndex].min,
+          this.scalingState[plotIndex].max,
+          plotIndex * plotHeight,
+          plotHeight,
+          config.colors[traceIndex]
+        );
+
+        // Draw legend for this specific trace
+        this.drawLegend(
+          trace,
+          config.colors[traceIndex],
+          traces.labels[traceIndex],
+          plotIndex * plotHeight,
+          plotHeight,
+          traceIndex
+        );
+      });
+    });
   }
 
-  private drawPlotWithE(
-    profile: Profile,
-    property: keyof Profile,
-    eValues: number[],
-    maxTime: number,
-    minValue: number,
-    maxValue: number,
-    yOffset: number,
-    plotHeight: number,
-    color1: string,
-    color2: string,
-    label: string
-  ): void {
+  private drawAxes(minValue: number, maxValue: number, yOffset: number, plotHeight: number, label: string): void {
     const width = this.canvas.width / window.devicePixelRatio;
-
     const range = maxValue - minValue;
     if (range === 0) return;
     const scale = (plotHeight - 40) / range;
 
-    // Draw original function
-    this.ctx.strokeStyle = color1;
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
-
-    const datapoints = profile[property];
-    for (let i = 0; i < datapoints.length; i++) {
-      const point = datapoints[i];
-      const x = (i / datapoints.length) * (width - 100) + 50;
-      const value = point;
-      const y = yOffset + plotHeight - 20 - (value - minValue) * scale;
-
-      if (i === 0) {
-        this.ctx.moveTo(x, y);
-      } else {
-        this.ctx.lineTo(x, y);
-      }
-    }
-
-    this.ctx.stroke();
-
-    // Draw extruder(t) trace
-    this.ctx.strokeStyle = color2;
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
-
-    for (let i = 0; i < eValues.length; i++) {
-      const x = (i / eValues.length) * (width - 100) + 50;
-      const eValue = eValues[i];
-      const y = yOffset + plotHeight - 20 - (eValue - minValue) * scale;
-
-      if (i === 0) {
-        this.ctx.moveTo(x, y);
-      } else {
-        this.ctx.lineTo(x, y);
-      }
-    }
-
-    this.ctx.stroke();
-
-    // Draw axes
     this.ctx.strokeStyle = '#333';
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
@@ -289,12 +257,12 @@ export class MotionSimulator {
     this.ctx.stroke();
 
     // Draw y-axis scale
-    const numTicks = 5;
     this.ctx.strokeStyle = '#333';
     this.ctx.lineWidth = 1;
     this.ctx.fillStyle = '#333';
     this.ctx.font = '12px Arial';
     this.ctx.textAlign = 'right';
+    const numTicks = 5;
     for (let i = 0; i < numTicks; i++) {
       const tickValue = minValue + (i / (numTicks - 1)) * range;
       const y = yOffset + plotHeight - 20 - (tickValue - minValue) * scale;
@@ -306,33 +274,67 @@ export class MotionSimulator {
       // Draw label
       this.ctx.fillText(tickValue.toFixed(1), 40, y + 4);
     }
-    this.ctx.textAlign = 'left'; // reset
+    this.ctx.textAlign = 'left';
 
     // Draw label
-    this.ctx.fillStyle = color1;
+    this.ctx.fillStyle = '#333';
     this.ctx.font = '14px Arial';
     this.ctx.fillText(label, 45, yOffset + 15);
+  }
 
-    // Calculate max/min for display
-    const originalValues = datapoints;
-    const adjustedEValues = eValues;
-    const suffix = '';
+  private drawTrace(
+    trace: number[],
+    minValue: number,
+    maxValue: number,
+    yOffset: number,
+    plotHeight: number,
+    color: string
+  ): void {
+    const width = this.canvas.width / window.devicePixelRatio;
+    const range = maxValue - minValue;
+    if (range === 0) return;
+    const scale = (plotHeight - 40) / range;
 
-    // Display max/min for traces at bottom right
-    this.ctx.fillStyle = '#333';
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+
+    for (let i = 0; i < trace.length; i++) {
+      const x = (i / trace.length) * (width - 100) + 50;
+      const value = trace[i];
+      const y = yOffset + plotHeight - 20 - (value - minValue) * scale;
+
+      if (i === 0) {
+        this.ctx.moveTo(x, y);
+      } else {
+        this.ctx.lineTo(x, y);
+      }
+    }
+
+    this.ctx.stroke();
+  }
+
+  private drawLegend(
+    trace: number[],
+    color: string,
+    label: string,
+    yOffset: number,
+    plotHeight: number,
+    traceIndex: number
+  ): void {
+    const width = this.canvas.width / window.devicePixelRatio;
     this.ctx.font = '10px Arial';
     this.ctx.textAlign = 'right';
-    this.ctx.fillText(
-      `Planned extrusion. Max: ${Math.max(...originalValues).toFixed(1)}${suffix}, Min: ${Math.min(...originalValues).toFixed(1)}${suffix}`,
-      width - 50,
-      yOffset + plotHeight - 50 + 10
-    );
 
+    const labelX = width - 50;
+    const labelY = yOffset + plotHeight - 90 + traceIndex * 10;
+
+    this.ctx.fillStyle = color;
     this.ctx.fillText(
-      `With advance Max:. ${Math.max(...adjustedEValues).toFixed(1)}${suffix}, Min: ${Math.min(...adjustedEValues).toFixed(1)}${suffix}`,
-      width - 50,
-      yOffset + plotHeight - 50 + 20
+      `${label}: Max: ${Math.max(...trace).toFixed(1)}, Min: ${Math.min(...trace).toFixed(1)}`,
+      labelX,
+      labelY
     );
-    this.ctx.textAlign = 'left'; // reset
+    this.ctx.textAlign = 'left';
   }
 }

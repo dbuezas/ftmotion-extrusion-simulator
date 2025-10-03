@@ -57,10 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
     simulator.updateProfileOnly(params);
   }
 
-  function updateScaling() {
-    simulator.updateScaling();
-  }
-
   function updateDisplays() {
     distanceValue.value = distanceSlider.value;
     rateValue.value = rateSlider.value;
@@ -105,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateProfileOnly();
     });
     slider.addEventListener('change', () => {
-      updateScaling();
+      updateSimulator();
     });
   });
 
@@ -137,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const clampedValue = Math.min(Math.max(value, parseFloat(slider.min)), parseFloat(slider.max));
         input.value = clampedValue.toString();
         slider.value = clampedValue.toString();
-        updateScaling();
+        updateSimulator();
       }
     });
   });
