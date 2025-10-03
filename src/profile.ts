@@ -1,6 +1,5 @@
 import { trapezoidalProfile } from './trapezoidal.js';
 import { poly6Profile } from './poly6.js';
-import { smoothen } from './smoothen.js';
 
 const filamentDiameter = 1.75; // mm
 const filamentArea = Math.PI * Math.pow(filamentDiameter / 2, 2); // mm²
@@ -42,6 +41,13 @@ export function calculateMotionProfile(params: MotionParameters): number[] {
   const mmFilamentPerMmTravel = (params.lineWidth * layerHeight) / filamentArea;
 
   posProfile = posProfile.map((p) => p * mmFilamentPerMmTravel);
+  const padLength = Math.floor(posProfile.length / 10);
 
-  return posProfile;
+  const paddedProfile = [
+    ...Array(padLength).fill(posProfile.at(0)),
+    ...posProfile,
+    ...Array(padLength).fill(posProfile.at(-1)),
+  ];
+
+  return paddedProfile;
 }
